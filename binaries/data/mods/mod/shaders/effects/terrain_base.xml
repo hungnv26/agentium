@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<effect>
+	<technique>
+		<require context="PASS_REFLECTIONS"/>
+		<require shaders="arb"/>
+		<require shaders="glsl"/>
+		<require shaders="spirv"/>
+		<pass shader="terrain_base">
+			<cull mode="FRONT"/>
+		</pass>
+	</technique>
+
+	<technique>
+		<require shaders="arb"/>
+		<require shaders="glsl"/>
+		<require shaders="spirv"/>
+		<require context="MODE_WIREFRAME"/>
+		<pass shader="terrain_base">
+			<polygon mode="LINE"/>
+		</pass>
+	</technique>
+
+	<technique>
+		<require shaders="arb"/>
+		<require shaders="glsl"/>
+		<require shaders="spirv"/>
+		<pass shader="terrain_base"/>
+	</technique>
+</effect>

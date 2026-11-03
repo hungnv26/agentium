@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<effect>
+	<technique>
+		<require shaders="glsl"/>
+		<require shaders="spirv"/>
+		<pass shader="water_high">
+			<depth test="TRUE"/>
+			<blend src="src_alpha" dst="one_minus_src_alpha"/>
+		</pass>
+	</technique>
+</effect>

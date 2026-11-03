@@ -1,0 +1,1 @@
+import("restriction/disallowedfile.js");

@@ -1,0 +1,32 @@
+!!ARBvp1.0
+
+PARAM transform = program.local[0];
+PARAM translation = program.local[1];
+PARAM textureTransform = program.local[2];
+OUTPUT v_tex = result.texcoord[0];
+
+TEMP position;
+MUL position, transform, vertex.position.xyxy;
+ADD position.x, position.x, position.y;
+ADD position.y, position.z, position.w;
+ADD position, position, translation.xyxy;
+MOV position.z, 0.0;
+MOV position.w, 1.0;
+MOV result.position, position;
+
+#if MINIMAP_BASE || MINIMAP_LOS
+  TEMP tex;
+  MUL tex, textureTransform, vertex.texcoord.xyxy;
+  ADD tex.x, tex.x, tex.y;
+  ADD tex.y, tex.z, tex.w;
+  ADD tex, tex, translation.zwzw;
+  MOV tex.z, 0.0;
+  MOV tex.w, 1.0;
+  MOV v_tex, tex;
+#endif
+
+#if MINIMAP_POINT
+  MOV result.color, vertex.color;
+#endif
+
+END

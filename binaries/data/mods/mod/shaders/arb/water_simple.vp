@@ -1,0 +1,39 @@
+!!ARBvp1.0
+
+ATTRIB position = vertex.position;
+
+PARAM transform[4] = { program.local[0..3] };
+PARAM losTransform = program.local[4];
+PARAM time = program.local[5];
+
+OUTPUT v_coords = result.texcoord[0];
+OUTPUT v_losCoords = result.texcoord[1];
+
+DP4 result.position.x, transform[0], position;
+DP4 result.position.y, transform[1], position;
+DP4 result.position.z, transform[2], position;
+DP4 result.position.w, transform[3], position;
+
+TEMP tx;
+MUL tx, time, -0.01235; // 1.0 / 81.0
+FRC tx, tx;
+TEMP tz;
+MUL tz, time, -0.02941; // 1.0 / 34.0
+FRC tz, tz;
+TEMP offset;
+MOV offset.x, tx;
+MOV offset.z, tz;
+
+TEMP coords;
+// Divide by period 16 and add offset.
+MAD coords, position, 0.0625, offset;
+ADD coords, coords, offset;
+MOV v_coords, coords.xzxz;
+
+TEMP losCoords;
+MOV losCoords, position.xzxz;
+MUL losCoords, losCoords, losTransform.xxxx;
+ADD losCoords, losCoords, losTransform.yyyy;
+MOV v_losCoords, losCoords.xyxy;
+
+END

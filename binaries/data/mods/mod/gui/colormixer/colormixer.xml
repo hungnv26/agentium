@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<objects>
+
+	<script directory="gui/common/"/>
+	<script module="gui/colormixer/colormixer.js"/>
+
+	<!-- Fade out the background because it's non-interactable -->
+	<object sprite="ModernFade" type="image"/>
+	<object name="cancelHotkey" hotkey="cancel" />
+	<object name="main"
+			style="ModernDialog"
+			type="image"
+			size="50%-250 50%-185 50%+250 50%+185"
+	>
+		<object name="titleBar"
+				style="ModernLabelText"
+				type="text"
+				size="50%-128 -18 50%+128 14"
+		/>
+		<object name="infoLabel" size="24 50 100%-24 80" type="text" style="ModernLabelText"/>
+		<object name="colorDisplay" type="image" size="50%-32 105 50%+32 145"/>
+		<object size="10 165 100%-10 100%-48">
+			<repeat count="3">
+				<object name="color[n]" size="0 0 100% 40">
+					<object name="colorLabel[n]" size="0 0 100% 20" type="text" style="ModernLabelText"/>
+					<object name="colorSlider[n]" size="0 20 100%-40 100%" type="slider" style="ModernSlider"/>
+					<object name="colorValue[n]" size="100%-40 20 100% 100%" type="text" style="ModernLabelText"/>
+				</object>
+			</repeat>
+		</object>
+		<object name="cmButton1"
+				style="ModernButtonRed"
+				type="button"
+				hidden="false"
+		/>
+		<object name="cmButton2"
+				style="ModernButtonRed"
+				type="button"
+				hidden="false"
+		/>
+	</object>
+</objects>

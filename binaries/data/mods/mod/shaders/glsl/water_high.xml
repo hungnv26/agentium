@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<program type="glsl">
+
+	<vertex file="glsl/water_high.vs">
+		<stream name="pos" attribute="a_vertex"/>
+		<stream name="uv1" attribute="a_waterInfo"/>
+	</vertex>
+
+	<fragment file="glsl/water_high.fs"/>
+
+</program>

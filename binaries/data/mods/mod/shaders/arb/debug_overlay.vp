@@ -1,0 +1,25 @@
+!!ARBvp1.0
+
+PARAM transform[4] = { program.local[0..3] };
+#if DEBUG_TEXTURED
+PARAM textureTransform = program.local[4];
+#endif
+
+ATTRIB position = vertex.position;
+#if DEBUG_TEXTURED
+ATTRIB uv = vertex.texcoord[0];
+#endif
+
+DP4 result.position.x, transform[0], position;
+DP4 result.position.y, transform[1], position;
+DP4 result.position.z, transform[2], position;
+DP4 result.position.w, transform[3], position;
+
+#if DEBUG_TEXTURED
+OUTPUT v_tex = result.texcoord[0];
+
+MUL v_tex.x, textureTransform.x, uv.x;
+MUL v_tex.y, textureTransform.y, uv.z;
+#endif
+
+END

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<effect>
+	<technique>
+		<define name="DEBUG_TEXTURED" value="1"/>
+		<require shaders="arb"/>
+		<require shaders="glsl"/>
+		<require shaders="spirv"/>
+		<pass shader="debug_overlay">
+			<depth test="FALSE" mask="false"/>
+			<blend src="src_alpha" dst="one_minus_src_alpha"/>
+		</pass>
+	</technique>
+</effect>

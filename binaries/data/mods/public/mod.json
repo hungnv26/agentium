@@ -1,0 +1,8 @@
+{
+	"name": "0ad",
+	"version": "0.28.0",
+	"label": "Agentium",
+	"url": "https://github.com/hungnv26/agentium",
+	"description": "A free, open-source, historical RTS game.",
+	"dependencies": []
+}
