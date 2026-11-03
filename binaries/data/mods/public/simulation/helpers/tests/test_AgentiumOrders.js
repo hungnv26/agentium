@@ -57,6 +57,7 @@ AddMock(playerEnt, IID_Player, {
 	"GetResourceCounts": () => resources
 });
 AddMock(playerEnt, IID_TechnologyManager, { "CanProduce": () => true, "CanResearch": () => true, "GetQueuedResearch": () => ({}) });
+Engine.RegisterGlobal("TechnologyTemplates", { "Get": name => ({ "cost": name.startsWith("phase_town") ? { "food": 500, "wood": 500 } : { "food": 100, "wood": 50 } }), "Has": () => true });
 AddMock(SYSTEM_ENTITY, IID_RangeManager, {
 	"GetEntitiesByPlayer": id => id == playerID ? [cc, barracks] : [],
 	"GetNonGaiaEntities": () => [cc, barracks],
@@ -132,3 +133,20 @@ TS_ASSERT_UNEVAL_EQUALS(result.commands[0], { "type": "set-rallypoint", "entitie
 result = AgentiumResolve(playerID, { "order": "attack", "target": "enemy_base" });
 TS_ASSERT(!result.ok);
 TS_ASSERT(result.message.indexOf("train soldiers") != -1);
+
+// Research and phase_up: the tech cost is read across helper files (AgentiumTechCost must be a global).
+AddMock(cc, IID_Researcher, { "GetTechnologiesList": () => ["gather_wicker_baskets", { "pair": true, "top": "phase_town_athen", "bottom": undefined }] });
+result = AgentiumResolve(playerID, { "order": "research", "tech": "gather_wicker_baskets" });
+TS_ASSERT(result.ok);
+TS_ASSERT_UNEVAL_EQUALS(result.commands[0], { "type": "research", "entity": cc, "template": "gather_wicker_baskets" });
+result = AgentiumResolve(playerID, { "order": "phase_up" });
+TS_ASSERT(!result.ok);
+TS_ASSERT(result.message.indexOf("needs 500 food") != -1);
+resources.food = 600;
+resources.wood = 600;
+result = AgentiumResolve(playerID, { "order": "phase_up" });
+TS_ASSERT(result.ok);
+TS_ASSERT_EQUALS(result.commands[0].template, "phase_town_athen");
+result = AgentiumResolve(playerID, { "order": "research", "tech": "nothing_like_this" });
+TS_ASSERT(!result.ok);
+TS_ASSERT(result.message.indexOf("gather_wicker_baskets") != -1);

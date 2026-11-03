@@ -598,5 +598,7 @@ Engine.RegisterGlobal("AgentiumOwnEntities", AgentiumOwnEntities);
 Engine.RegisterGlobal("AgentiumCivicCentre", AgentiumCivicCentre);
 Engine.RegisterGlobal("AgentiumMapSize", AgentiumMapSize);
 Engine.RegisterGlobal("AgentiumTemplateCost", AgentiumTemplateCost);
+Engine.RegisterGlobal("AgentiumTechCost", AgentiumTechCost);
+Engine.RegisterGlobal("AgentiumAffordable", AgentiumAffordable);
 Engine.RegisterGlobal("AgentiumView", AgentiumView);
 Engine.RegisterGlobal("AgentiumStatus", AgentiumStatus);
