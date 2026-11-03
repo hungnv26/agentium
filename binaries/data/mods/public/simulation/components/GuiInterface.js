@@ -2053,6 +2053,23 @@ GuiInterface.prototype.OnGlobalEntityRenamed = function(msg)
 };
 
 /**
+ * Agentium: compact fog-of-war-aware view of the player's situation (helpers/AgentiumView.js).
+ */
+GuiInterface.prototype.GetAgentiumView = function(player)
+{
+	return AgentiumView(player);
+};
+
+/**
+ * Agentium: translate a high-level order into player commands (helpers/AgentiumOrders.js).
+ * The GUI posts the returned commands itself with Engine.PostNetworkCommand.
+ */
+GuiInterface.prototype.ResolveAgentiumOrder = function(player, order)
+{
+	return AgentiumResolve(player, order);
+};
+
+/**
  * List the GuiInterface functions that can be safely called by GUI scripts.
  * (GUI scripts are non-deterministic and untrusted, so these functions must be
  * appropriately careful. They are called with a first argument "player", which is
@@ -2122,7 +2139,10 @@ GuiInterface.prototype.exposedFunctions = {
 	"IsTemplateModified": 1,
 	"ResetTemplateModified": 1,
 	"IsSelectionDirty": 1,
-	"ResetSelectionDirty": 1
+	"ResetSelectionDirty": 1,
+
+	"GetAgentiumView": 1,
+	"ResolveAgentiumOrder": 1
 };
 
 GuiInterface.prototype.ScriptCall = function(player, name, args)
