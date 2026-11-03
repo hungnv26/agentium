@@ -1,0 +1,15 @@
+{
+  "name": "agentium-arena",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agentium Arena: AI model players for 0 A.D. through the engine's RL interface",
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "match": "node src/cli.ts",
+    "test": "node --test --test-timeout=30000 test/*.test.ts"
+  }
+}
