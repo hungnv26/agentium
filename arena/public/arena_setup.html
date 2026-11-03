@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentium Arena</title>
+<style>
+  :root { --bg: #15130f; --panel: #221e18; --line: #3a332a; --text: #ede4d3; --muted: #a2967f; --accent: #e0a94a; --ok: #7fc47f; --bad: #e06c6c; --mono: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  header { padding: 18px 24px 8px; display: flex; align-items: baseline; gap: 16px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: 0.08em; color: var(--accent); }
+  header span { color: var(--muted); }
+  main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 8px 24px 32px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 8px 0 2px; }
+  input, select, button { font: inherit; color: var(--text); background: #171410; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  input[type=number] { width: 90px; }
+  select { max-width: 100%; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); font-weight: 600; padding: 8px 16px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .player { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .player .title { font-weight: 600; color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .log { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; max-height: 260px; overflow: auto; color: var(--muted); background: #121009; border-radius: 6px; padding: 8px; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .muted { color: var(--muted); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  .stack > section + section { margin-top: 16px; }
+  .keys { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; }
+  .keys input { width: 100%; }
+</style>
+</head>
+<body>
+<header><h1>AGENTIUM ARENA</h1><span>AI models playing 0 A.D.</span></header>
+<main>
+  <div class="stack">
+    <section>
+      <h2>Match</h2>
+      <label>Map</label>
+      <select id="map"></select>
+      <div class="row">
+        <div><label>Game minutes</label><input id="minutes" type="number" value="15" min="1" max="180"></div>
+        <div><label>Speed (turns per 200 ms, 0 = fastest)</label><input id="speed" type="number" value="1" min="0" max="50"></div>
+      </div>
+      <div class="row">
+        <div><label>Pacing</label><select id="pacing"><option value="realtime">realtime (models may fall behind)</option><option value="turnbased">turn-based (wait for every model)</option></select></div>
+        <div><label>Display</label><select id="headless"><option value="true">headless</option><option value="false">game window (observer)</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Players</label><input id="count" type="number" value="2" min="2" max="8"></div>
+        <div><label>Cost cap per model (USD)</label><input id="cap" type="number" value="1" min="0" step="0.5"></div>
+        <div><label>Token budget</label><input id="budget" type="number" value="1200000" min="10000" step="100000"></div>
+      </div>
+      <div id="players"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="start">Start match</button>
+        <button id="stop">Stop</button>
+        <span id="startMsg" class="muted"></span>
+      </div>
+    </section>
+    <section>
+      <h2>Provider keys</h2>
+      <div class="keys" id="keys"></div>
+      <p class="muted" style="margin:8px 0 0;font-size:12px">Keys are saved as files in <span class="mono">arena/keys/</span> (or ARENA_KEYS_DIR) and never leave this machine. Local Ollama needs none.</p>
+    </section>
+    <section>
+      <h2>Ratings</h2>
+      <table id="elo"><thead><tr><th>Player</th><th>Elo</th><th>Matches</th><th>Wins</th></tr></thead><tbody></tbody></table>
+    </section>
+  </div>
+  <div class="stack">
+    <section>
+      <h2>Live</h2>
+      <div id="live" class="muted">No match running.</div>
+      <table id="board" style="margin-top:8px"><thead><tr><th>Player</th><th>Civ</th><th>State</th><th>Pop</th><th>Phase</th><th>Turns</th><th>Tokens</th><th>Cost</th><th>Last orders</th></tr></thead><tbody></tbody></table>
+      <div class="log" id="log" style="margin-top:10px"></div>
+    </section>
+    <section>
+      <h2>Matches</h2>
+      <table id="matches"><thead><tr><th>Id</th><th>Map</th><th>Result</th><th>Players</th><th>Game time</th><th>Replay</th></tr></thead><tbody></tbody></table>
+    </section>
+  </div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const api = (path, init) => fetch(path, init).then(async (r) => { const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = { error: t }; } if (!r.ok) throw new Error(j.error?.message ?? j.error ?? r.status); return j; });
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const CIVS = ["athen", "brit", "cart", "gaul", "germ", "han", "iber", "kush", "mace", "maur", "pers", "ptol", "rome", "sele", "spart"];
+let providers = {}; const modelLists = {};
+const DEFAULT_PLAYERS = [
+  { controller: "model", provider: "anthropic", model: "claude-sonnet-5-5", civ: "athen" },
+  { controller: "model", provider: "openai", model: "gpt-5", civ: "rome" },
+  { controller: "petra", difficulty: 3, civ: "spart" },
+  { controller: "petra", difficulty: 3, civ: "pers" },
+  { controller: "petra", difficulty: 3, civ: "brit" },
+  { controller: "petra", difficulty: 3, civ: "mace" },
+  { controller: "petra", difficulty: 3, civ: "cart" },
+  { controller: "petra", difficulty: 3, civ: "gaul" },
+];
+let players = [];
+try { players = JSON.parse(localStorage.getItem("agentium.players") || "null") || []; } catch {}
+if (!players.length) players = DEFAULT_PLAYERS.map((p) => ({ ...p }));
+
+async function loadModels(provider) {
+  if (modelLists[provider]) return modelLists[provider];
+  const r = await api(`/arena/models?provider=${provider}`);
+  providers = r.providers; modelLists[provider] = r.models; return r.models;
+}
+
+function renderPlayers() {
+  const n = Math.min(8, Math.max(2, Number($("#count").value) || 2));
+  const host = $("#players"); host.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const p = players[i] ??= { ...DEFAULT_PLAYERS[i] };
+    const div = document.createElement("div"); div.className = "player";
+    div.innerHTML = `<span class="title">Player ${i + 1}</span>
+      <div class="row">
+        <div><label>Controller</label><select data-k="controller"><option value="model">AI model</option><option value="petra">Petra (built-in AI)</option><option value="none">empty</option></select></div>
+        <div><label>Civ</label><select data-k="civ">${CIVS.map((c) => `<option>${c}</option>`).join("")}</select></div>
+        <div class="model-only"><label>Provider</label><select data-k="provider">${Object.entries(providers).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div>
+        <div class="model-only"><label>Model</label><select data-k="model"></select></div>
+        <div class="petra-only"><label>Difficulty</label><select data-k="difficulty"><option value="0">0 sandbox</option><option value="1">1 very easy</option><option value="2">2 easy</option><option value="3">3 medium</option><option value="4">4 hard</option><option value="5">5 very hard</option></select></div>
+        <div><label>Team</label><select data-k="team"><option value="-1">none</option><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></div>
+      </div>`;
+    host.appendChild(div);
+    const sel = (k) => div.querySelector(`[data-k=${k}]`);
+    sel("controller").value = p.controller; sel("civ").value = p.civ ?? CIVS[i % CIVS.length];
+    sel("provider").value = p.provider ?? "anthropic"; sel("difficulty").value = String(p.difficulty ?? 3); sel("team").value = String(p.team ?? -1);
+    const refreshModels = async () => {
+      const list = await loadModels(sel("provider").value);
+      sel("model").innerHTML = list.map((m) => `<option>${esc(m)}</option>`).join("");
+      if (p.model && list.includes(p.model)) sel("model").value = p.model; else p.model = sel("model").value;
+    };
+    const update = () => {
+      p.controller = sel("controller").value; p.civ = sel("civ").value; p.provider = sel("provider").value; p.model = sel("model").value; p.difficulty = Number(sel("difficulty").value); p.team = Number(sel("team").value);
+      div.querySelectorAll(".model-only").forEach((e) => e.style.display = p.controller === "model" ? "" : "none");
+      div.querySelectorAll(".petra-only").forEach((e) => e.style.display = p.controller === "petra" ? "" : "none");
+      localStorage.setItem("agentium.players", JSON.stringify(players));
+    };
+    div.querySelectorAll("select").forEach((s) => s.addEventListener("change", async () => { if (s.dataset.k === "provider") await refreshModels(); update(); }));
+    refreshModels().then(update);
+  }
+}
+
+function card() {
+  const n = Math.min(8, Math.max(2, Number($("#count").value) || 2));
+  return {
+    map: $("#map").value, minutes: Number($("#minutes").value), speed: Number($("#speed").value), pacing: $("#pacing").value, headless: $("#headless").value === "true",
+    players: players.slice(0, n).map((p) => p.controller === "model"
+      ? { controller: "model", civ: p.civ, team: p.team, model: `${p.provider}:${p.model}`, cap: Number($("#cap").value) || null, budget: Number($("#budget").value) }
+      : { controller: p.controller, civ: p.civ, team: p.team, difficulty: p.difficulty }),
+  };
+}
+
+async function refreshKeys() {
+  const keys = await api("/arena/keys");
+  $("#keys").innerHTML = Object.entries(keys).map(([p, k]) => `<input type="password" placeholder="${esc(providers[p] ?? p)} API key ${k.saved ? `(saved ${esc(k.hint)})` : "(none)"}" data-p="${p}"><button data-save="${p}">Save</button>`).join("");
+  $("#keys").querySelectorAll("button").forEach((b) => b.onclick = async () => {
+    const input = $("#keys").querySelector(`input[data-p=${b.dataset.save}]`);
+    if (!input.value.trim()) return;
+    await api(`/arena/keys/${b.dataset.save}`, { method: "PUT", body: input.value.trim() });
+    delete modelLists[b.dataset.save]; await refreshKeys(); renderPlayers();
+  });
+}
+
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+async function refreshStatus() {
+  const s = await api("/arena/status");
+  const m = s.match;
+  $("#start").disabled = !!m && ["starting", "running", "finishing"].includes(m.state);
+  if (!m) { $("#live").textContent = "No match running."; $("#board tbody").innerHTML = ""; }
+  else {
+    const r = m.result;
+    $("#live").innerHTML = `<span class="pill">${esc(m.state)}</span> ${esc(m.map)} &nbsp; game ${fmtTime(m.gameTime)} &nbsp; turn ${m.turn} &nbsp; ${m.wallSeconds} s wall` +
+      (r ? ` &nbsp; <b class="${r.winner ? "ok" : "muted"}">${esc(r.reason)}: ${r.winner ? `player ${r.winner} (${esc(r.winners[0])}) wins` : "no winner"}</b>` : "");
+    $("#board tbody").innerHTML = m.players.map((p) => { const c = p.commander; return `<tr><td>${p.player} <span class="mono">${esc(p.id)}</span></td><td>${esc(p.civ)}</td><td class="${p.state === "defeated" ? "bad" : p.state === "won" ? "ok" : ""}">${esc(c ? c.status : p.state)}</td><td>${p.pop ?? ""}</td><td>${esc(p.phase ?? "")}</td><td>${c ? c.turns : ""}</td><td>${c ? c.tokens.toLocaleString() : ""}</td><td>${c && c.usd != null ? "$" + c.usd.toFixed(3) : ""}</td><td class="mono muted">${esc((c?.lastOrders ?? []).join(" | ").slice(0, 220))}</td></tr>`; }).join("");
+  }
+  $("#log").textContent = (s.log ?? []).join("\n");
+  $("#log").scrollTop = $("#log").scrollHeight;
+}
+async function refreshMatches() {
+  const list = await api("/arena/matches");
+  $("#matches tbody").innerHTML = list.map((m) => `<tr><td class="mono">${esc(m.id)}</td><td>${esc(m.map)}</td><td class="${m.reason === "failed" ? "bad" : ""}">${esc(m.reason)}${m.winner ? `: player ${m.winner}` : ""}</td><td class="mono">${m.players.map((p) => `${p.player} ${esc(p.id)} (${esc(p.civ)}) ${p.score}${p.stats?.usd != null ? " $" + p.stats.usd.toFixed(3) : ""}`).join("<br>")}</td><td>${fmtTime(m.gameSeconds)}</td><td>${m.commandsTxt ? `<a href="/replays/${esc(m.id)}/commands.txt">download</a> <button data-watch="${esc(m.id)}">Watch</button>` : ""}</td></tr>`).join("");
+  $("#matches").querySelectorAll("button[data-watch]").forEach((b) => b.onclick = () => api(`/arena/replay/${b.dataset.watch}/watch`, { method: "POST" }));
+  const elo = await api("/arena/elo");
+  $("#elo tbody").innerHTML = Object.entries(elo).sort((a, b) => b[1].rating - a[1].rating).map(([id, e]) => `<tr><td class="mono">${esc(id)}</td><td>${e.rating}</td><td>${e.matches}</td><td>${e.wins}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No rated matches yet.</td></tr>`;
+}
+
+$("#start").onclick = async () => {
+  $("#startMsg").textContent = "";
+  try { const r = await api("/arena/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(card()) }); $("#startMsg").textContent = `started ${r.id}`; }
+  catch (e) { $("#startMsg").textContent = e.message; $("#startMsg").className = "bad"; }
+};
+$("#stop").onclick = () => api("/arena/stop", { method: "POST" });
+$("#count").addEventListener("change", renderPlayers);
+
+(async () => {
+  const maps = await api("/arena/maps");
+  $("#map").innerHTML = `<optgroup label="Skirmish">${maps.skirmishes.map((m) => `<option value="skirmishes/${m}">${m}</option>`).join("")}</optgroup><optgroup label="Random">${maps.random.map((m) => `<option value="random/${m}">${m}</option>`).join("")}</optgroup>`;
+  $("#map").value = localStorage.getItem("agentium.map") || "skirmishes/acropolis_bay_2p";
+  $("#map").addEventListener("change", () => localStorage.setItem("agentium.map", $("#map").value));
+  await loadModels("anthropic");
+  await refreshKeys();
+  renderPlayers();
+  await refreshStatus(); await refreshMatches();
+  setInterval(refreshStatus, 2000); setInterval(refreshMatches, 10000);
+})();
+</script>
+</body>
+</html>
