@@ -69,8 +69,19 @@ CParamNode GetTemplate(const std::string& templateName)
 }
 
 
+/**
+ * The factor between GUI units and backbuffer pixels: the configured gui.scale, multiplied by
+ * the display's pixel density on HiDPI screens. GUI scripts divide pixel coordinates (mouse
+ * events, picking) by it to get GUI coordinates.
+ */
+float GetGUIScale()
+{
+	return g_VideoMode.GetScale();
+}
+
 void RegisterScriptFunctions(const ScriptRequest& rq)
 {
+	ScriptFunction::Register<&GetGUIScale>(rq, "GetGUIScale");
 	ScriptFunction::Register<&OpenChildPage>(rq, "OpenChildPage");
 	ScriptFunction::Register<&SwitchGuiPage>(rq, "SwitchGuiPage");
 	ScriptFunction::Register<&SetCursor>(rq, "SetCursor");

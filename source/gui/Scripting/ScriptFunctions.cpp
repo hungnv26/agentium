@@ -31,6 +31,7 @@
 #include "ps/scripting/JSInterface_Debug.h"
 #include "ps/scripting/JSInterface_Game.h"
 #include "ps/scripting/JSInterface_Hotkey.h"
+#include "ps/scripting/JSInterface_Http.h"
 #include "ps/scripting/JSInterface_Main.h"
 #include "ps/scripting/JSInterface_Mod.h"
 #include "ps/scripting/JSInterface_ModIo.h"
@@ -62,6 +63,7 @@ void GuiScriptingInit(ScriptInterface& scriptInterface)
 	JSI_Game::RegisterScriptFunctions(rq);
 	JSI_GameView::RegisterScriptFunctions(rq);
 	JSI_Hotkey::RegisterScriptFunctions(rq);
+	JSI_Http::RegisterScriptFunctions(rq);
 	JSI_L10n::RegisterScriptFunctions(rq);
 	JSI_Lobby::RegisterScriptFunctions(rq);
 	JSI_Main::RegisterScriptFunctions(rq);
