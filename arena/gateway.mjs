@@ -15,6 +15,8 @@ import http from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { callCost, fromAnthropic, fromResponses, toAnthropic, toResponses, WAR_MAX_TOKENS, withoutThinking } from "./war_models.mjs";
+import { SYSTEM_PROMPT, TOOLS } from "./src/orders.ts";
+import { newMemory, turnText } from "./src/view.ts";
 
 export const ROOT = dirname(fileURLToPath(import.meta.url));
 export const GATEWAY_PORT = Number(process.env.GATEWAY_PORT ?? 8895);
@@ -204,6 +206,43 @@ export function models(provider) {
   return modelLists[provider] ?? PROVIDERS[provider]?.models ?? [];
 }
 
+// ---- the in-game advisor ----
+// POST /advisor/turn {model, player, name, civ, minutes, view, results} -> {text, orders:[{tool,args}], tokens, usd}
+// The same briefing and tools as the Arena's commanders (src/orders.ts); the view comes from the
+// game (GuiInterface GetAgentiumView) and the memory between turns is kept here per player.
+const advisorMemory = new Map();
+export async function advisorTurn(body) {
+  const model = String(body.model ?? "anthropic:claude-haiku-5-5");
+  const view = body.view;
+  if (!view || typeof view !== "object") return { status: 400, reply: { error: { message: "no view" } } };
+  const key = `${body.player ?? 1}:${model}`;
+  if (!advisorMemory.has(key)) advisorMemory.set(key, { memory: newMemory(), turns: 0 });
+  const state = advisorMemory.get(key);
+  const prompt = turnText(view, Array.isArray(body.results) ? body.results.map(String) : [], state.memory, state.turns === 0);
+  state.turns++;
+  const r = await arenaCall(model, {
+    model,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT(String(body.name ?? "the player"), String(body.civ ?? view.civ ?? ""), Number(body.minutes) || 30) + "\n\nYou are advising a human player: besides the tool calls, write one or two short sentences saying what matters most right now." },
+      { role: "user", content: prompt },
+    ],
+    tools: TOOLS,
+    tool_choice: "auto",
+    max_tokens: WAR_MAX_TOKENS,
+    user: `advisor-${key}`,
+  }, `advisor-${key}`);
+  if (r.status !== 200 || !r.reply) return { status: r.status, reply: JSON.parse(r.text || "{}") };
+  const message = r.reply.choices?.[0]?.message ?? {};
+  const orders = (message.tool_calls ?? []).map((c) => {
+    let args = {};
+    try {
+      args = JSON.parse(c.function?.arguments || "{}");
+    } catch {}
+    return { tool: c.function?.name ?? "", args };
+  });
+  return { status: 200, reply: { text: message.content ?? "", orders, tokens: r.tokens, usd: r.usd } };
+}
+
 // ---- HTTP ----
 
 export function startGateway(port = GATEWAY_PORT, host = "127.0.0.1") {
@@ -234,6 +273,20 @@ export function startGateway(port = GATEWAY_PORT, host = "127.0.0.1") {
       }
       fetchModels(keyPath[1]);
       return send(200, { ok: true, keys: keyStatus() });
+    }
+    if (url.pathname === "/advisor/turn") {
+      if (req.method !== "POST") return send(405, { error: { message: "POST only" } });
+      if (!sameToken(req.headers["x-arena-token"] ?? "", token)) return send(401, { error: { message: "bad token" } });
+      let body;
+      try {
+        let raw = "";
+        for await (const chunk of req) raw += chunk;
+        body = JSON.parse(raw || "{}");
+      } catch {
+        return send(400, { error: { message: "bad JSON" } });
+      }
+      const r = await advisorTurn(body);
+      return send(r.status, r.reply);
     }
     if (url.pathname === "/llm/arena/v1/chat/completions") {
       if (req.method !== "POST") return send(405, { error: { message: "POST only" } });

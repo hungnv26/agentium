@@ -409,7 +409,8 @@ function tryPlaceWall(queued)
  */
 function updateBandbox(bandbox, ev, hidden)
 {
-	const scale = +Engine.ConfigDB_GetValue("user", "gui.scale");
+	// Pixels to GUI units (gui.scale, and the pixel density on HiDPI screens).
+	const scale = Engine.GetGUIScale ? Engine.GetGUIScale() : +Engine.ConfigDB_GetValue("user", "gui.scale");
 	const vMin = Vector2D.min(g_DragStart, ev);
 	const vMax = Vector2D.max(g_DragStart, ev);
 

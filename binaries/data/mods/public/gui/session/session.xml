@@ -6,6 +6,7 @@
 <script directory="gui/common/campaigns/"/>
 <script directory="gui/maps/"/>
 <script directory="gui/session/"/>
+<script directory="gui/session/advisor/"/>
 <script directory="gui/session/campaigns/"/>
 <script directory="gui/session/chat/"/>
 <script directory="gui/session/developer_overlay/"/>
@@ -51,6 +52,7 @@
 		</object>
 	</object>
 
+	<include directory="gui/session/advisor/"/>
 	<include directory="gui/session/chat/"/>
 	<include directory="gui/session/developer_overlay/"/>
 	<include directory="gui/session/dialogs/"/>

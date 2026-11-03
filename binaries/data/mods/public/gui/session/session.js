@@ -13,6 +13,7 @@ var g_AutoFormation;
 var g_Chat;
 var g_Cheats;
 var g_DeveloperOverlay;
+var g_Advisor;
 var g_DiplomacyColors;
 var g_DiplomacyDialog;
 var g_GameSpeedControl;
@@ -289,6 +290,7 @@ function init(initData, hotloadData)
 	g_AutoFormation = new AutoFormation();
 	g_Chat = new Chat(g_PlayerViewControl, g_Cheats);
 	g_DeveloperOverlay = new DeveloperOverlay(g_PlayerViewControl, g_Selection);
+	g_Advisor = new Advisor(g_PlayerViewControl);
 	g_DiplomacyDialog = new DiplomacyDialog(g_PlayerViewControl, g_DiplomacyColors);
 	g_GameSpeedControl = new GameSpeedControl(g_PlayerViewControl);
 	g_MatchSettingsDialog = new MatchSettingsDialog(g_PlayerViewControl, mapCache);

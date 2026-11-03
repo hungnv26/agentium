@@ -58,3 +58,23 @@ Provider keys are files: `arena/keys/<provider>.key` (gitignored), or set `ARENA
 `gather`, `train`, `build`, `research`, `phase_up`, `attack`, `move`, `retreat`, `garrison`,
 `set_rallypoint`, `stance`: defined once in `src/orders.ts` (prompt and tool schemas) and carried
 out by `AgentiumResolve` in the simulation, which refuses with a reason naming what is available.
+
+## In-game advisor
+
+The same model, prompt and tools can advise a human player from inside the game. The engine's
+HTTP bridge (`Engine.HttpRequestStart/Poll`) is off by default; turn it on in the user config
+(`~/Library/Application Support/agentium/config/user.cfg`) with the token the gateway prints
+(the setup page's Advisor section shows the exact lines):
+
+```
+http.enabled = "true"
+advisor.enabled = "true"
+advisor.token = "<arena/.data/arena.token>"
+advisor.model = "anthropic:claude-haiku-5-5"   ; optional
+advisor.interval = "45"                        ; seconds between automatic turns, 0 = only on request
+```
+
+Run `node src/server.ts`, start a single-player game, and press the Advisor button under the
+top panel: the panel shows the model's note and up to six suggested orders, each with Apply.
+Applied orders go through the same resolver as the Arena's commanders and are recorded in the
+replay. Only the local player can apply; observers get a read-only view.

@@ -71,6 +71,11 @@
       <p class="muted" style="margin:8px 0 0;font-size:12px">Keys are saved as files in <span class="mono">arena/keys/</span> (or ARENA_KEYS_DIR) and never leave this machine. Local Ollama needs none.</p>
     </section>
     <section>
+      <h2>In-game advisor</h2>
+      <p class="muted" style="margin:0 0 6px;font-size:12px">Add these lines to <span class="mono" id="advisorFile"></span> and the Advisor button appears in every single-player game while this service runs.</p>
+      <pre class="log" id="advisorConfig" style="max-height:140px"></pre>
+    </section>
+    <section>
       <h2>Ratings</h2>
       <table id="elo"><thead><tr><th>Player</th><th>Elo</th><th>Matches</th><th>Wins</th></tr></thead><tbody></tbody></table>
     </section>
@@ -208,6 +213,7 @@ $("#count").addEventListener("change", renderPlayers);
   $("#map").addEventListener("change", () => localStorage.setItem("agentium.map", $("#map").value));
   await loadModels("anthropic");
   await refreshKeys();
+  try { const a = await api("/arena/advisor-config"); $("#advisorFile").textContent = a.file; $("#advisorConfig").textContent = a.lines.join("\n"); } catch {}
   renderPlayers();
   await refreshStatus(); await refreshMatches();
   setInterval(refreshStatus, 2000); setInterval(refreshMatches, 10000);

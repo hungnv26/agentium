@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Agentium advisor: an AI model reads the viewed player's situation and suggests orders. -->
+<object>
+	<object name="advisorToggle" type="button" style="ModernButtonRed" size="100%-92 34 100%-8 56" tooltip_style="sessionToolTip" hidden="true">
+		<translatableAttribute id="caption">Advisor</translatableAttribute>
+		<translatableAttribute id="tooltip">Ask an AI model for advice on your situation.</translatableAttribute>
+	</object>
+
+	<object
+		name="advisorPanel"
+		type="image"
+		sprite="sessionOverlayBackground"
+		size="100%-420 60 100%-8 60%+40"
+		z="40"
+		hidden="true"
+	>
+		<object name="advisorTitle" type="text" style="ModernLabelText" text_align="left" size="10 6 100%-120 28" ghost="true">
+			<translatableAttribute id="caption">Advisor</translatableAttribute>
+		</object>
+		<object name="advisorStatus" type="text" style="ModernLabelText" text_align="right" font="sans-12" size="100%-260 6 100%-10 28" ghost="true"/>
+
+		<object name="advisorText" type="text" style="ModernText" font="sans-13" size="10 32 100%-10 45%" ghost="true"/>
+
+		<object name="advisorOrders" size="10 45%+4 100%-10 100%-40">
+			<repeat count="6">
+				<object name="advisorOrder[n]" size="0 0 100% 26" hidden="true">
+					<object name="advisorOrderText[n]" type="text" style="ModernText" font="sans-12" text_valign="center" size="0 0 100%-70 100%" ghost="true"/>
+					<object name="advisorOrderApply[n]" type="button" style="ModernButtonRed" font="sans-12" size="100%-66 2 100% 24">
+						<translatableAttribute id="caption">Apply</translatableAttribute>
+					</object>
+				</object>
+			</repeat>
+		</object>
+
+		<object name="advisorAsk" type="button" style="ModernButtonRed" size="10 100%-32 110 100%-8">
+			<translatableAttribute id="caption">Ask now</translatableAttribute>
+		</object>
+		<object name="advisorApplyAll" type="button" style="ModernButtonRed" size="118 100%-32 218 100%-8">
+			<translatableAttribute id="caption">Apply all</translatableAttribute>
+		</object>
+		<object name="advisorClose" type="button" style="ModernButtonRed" size="100%-90 100%-32 100%-10 100%-8">
+			<translatableAttribute id="caption">Close</translatableAttribute>
+		</object>
+	</object>
+</object>

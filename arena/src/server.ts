@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { join } from "node:path";
-import { arenaCall, fetchModels, keyStatus, models, PROVIDERS, saveProviderKey, startGateway } from "../gateway.mjs";
+import { arenaCall, arenaToken, fetchModels, GATEWAY_PORT, keyStatus, models, PROVIDERS, saveProviderKey, startGateway } from "../gateway.mjs";
 import { parseCard } from "./card.ts";
 import { REPO_ROOT, watchReplay } from "./game/process.ts";
 import { readElo } from "./elo.ts";
@@ -77,6 +77,12 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/arena/matches") return send(200, listMatches());
     if (url.pathname === "/arena/elo") return send(200, readElo(ELO_PATH));
     if (url.pathname === "/arena/maps") return send(200, listMaps());
+    if (url.pathname === "/arena/advisor-config")
+      return send(200, {
+        token: arenaToken(),
+        lines: [`http.enabled = "true"`, `advisor.enabled = "true"`, `advisor.token = "${arenaToken()}"`, `advisor.url = "http://127.0.0.1:${GATEWAY_PORT}/advisor/turn"`, `advisor.model = "anthropic:claude-haiku-5-5"`, `advisor.interval = "45"`],
+        file: `${process.env.HOME}/Library/Application Support/agentium/config/user.cfg`,
+      });
     if (url.pathname === "/arena/keys" && req.method === "GET") return send(200, keyStatus());
     const keyPath = /^\/arena\/keys\/([a-z]+)$/.exec(url.pathname);
     if (keyPath && req.method === "PUT") {
