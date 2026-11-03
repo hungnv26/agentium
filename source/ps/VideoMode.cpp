@@ -56,6 +56,7 @@
 #include <SDL_surface.h>
 #include <SDL_version.h>
 #include <SDL_video.h>
+#include <SDL_vulkan.h>
 #include <algorithm>
 #include <cstdlib>
 #include <sstream>
@@ -253,7 +254,8 @@ void CVideoMode::CCursor::SetCursor(const CStrW& name)
 		LOGERROR("Can't create surface for cursor: %s", SDL_GetError());
 		return;
 	}
-	const float scale = g_VideoMode.GetScale();
+	// Cursors are in window points: scale by gui.scale only, not the pixel density.
+	const float scale = g_VideoMode.GetScale() / g_VideoMode.GetDPIScale();
 	if (scale != 1.0)
 	{
 		SDL_Surface* scaledSurface = SDL_CreateRGBSurface(0,
@@ -518,6 +520,7 @@ bool CVideoMode::SetVideoMode(int w, int h, int bpp, bool fullscreen)
 	// Grab the current video settings
 	SDL_GetWindowSize(m_Window, &m_CurrentW, &m_CurrentH);
 	m_CurrentBPP = bpp;
+	UpdateDrawableSize();
 
 	// #545: we need to constrain the window in fullscreen mode to avoid mouse
 	// "falling out" of the window in case of multiple displays.
@@ -531,10 +534,53 @@ bool CVideoMode::SetVideoMode(int w, int h, int bpp, bool fullscreen)
 
 	m_IsFullscreen = fullscreen;
 
-	g_xres = m_CurrentW;
-	g_yres = m_CurrentH;
+	// The renderer works in pixels; on a HiDPI display that is more than the window's points.
+	g_xres = m_DrawableW;
+	g_yres = m_DrawableH;
+	LOGMESSAGE("Video mode: %dx%d points, %dx%d pixels (pixel density %.2f, hidpi %s)",
+		m_CurrentW, m_CurrentH, m_DrawableW, m_DrawableH, m_DPIScale,
+		(SDL_GetWindowFlags(m_Window) & SDL_WINDOW_ALLOW_HIGHDPI) ? "on" : "off");
 
 	return true;
+}
+
+void CVideoMode::QueryDrawableSize(int& w, int& h) const
+{
+	w = m_CurrentW;
+	h = m_CurrentH;
+	if (!m_Window)
+		return;
+	switch (m_Backend)
+	{
+	case Renderer::Backend::Backend::GL:
+	case Renderer::Backend::Backend::GL_ARB:
+		SDL_GL_GetDrawableSize(m_Window, &w, &h);
+		break;
+	case Renderer::Backend::Backend::VULKAN:
+		SDL_Vulkan_GetDrawableSize(m_Window, &w, &h);
+		break;
+	default:
+		SDL_GetWindowSize(m_Window, &w, &h);
+		break;
+	}
+	if (w <= 0 || h <= 0)
+	{
+		w = m_CurrentW;
+		h = m_CurrentH;
+	}
+}
+
+void CVideoMode::UpdateDrawableSize()
+{
+	QueryDrawableSize(m_DrawableW, m_DrawableH);
+	m_DPIScale = m_CurrentW > 0 ? static_cast<float>(m_DrawableW) / static_cast<float>(m_CurrentW) : 1.0f;
+	if (m_DPIScale <= 0.0f)
+		m_DPIScale = 1.0f;
+}
+
+float CVideoMode::GetDPIScale() const
+{
+	return m_DPIScale;
 }
 
 bool CVideoMode::InitSDL()
@@ -729,7 +775,7 @@ void CVideoMode::Rescale(float scale)
 
 float CVideoMode::GetScale() const
 {
-	return m_Scale;
+	return m_Scale * m_DPIScale;
 }
 
 bool CVideoMode::SetFullscreen(bool fullscreen)
@@ -814,6 +860,14 @@ void CVideoMode::UpdatePosition(int x, int y)
 
 void CVideoMode::UpdateRenderer(int w, int h)
 {
+	// Callers pass the window size in points; the renderer needs the drawable size in pixels.
+	if (g_VideoMode.m_Window)
+	{
+		SDL_GetWindowSize(g_VideoMode.m_Window, &g_VideoMode.m_CurrentW, &g_VideoMode.m_CurrentH);
+		g_VideoMode.UpdateDrawableSize();
+		w = g_VideoMode.m_DrawableW;
+		h = g_VideoMode.m_DrawableH;
+	}
 	if (w < 2) w = 2; // avoid GL errors caused by invalid sizes
 	if (h < 2) h = 2;
 

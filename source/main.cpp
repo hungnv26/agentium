@@ -95,6 +95,7 @@ that of Atlas depending on commandline parameters.
 #include <SDL_timer.h>
 #include <SDL_video.h>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <ctime>
 #include <exception>
@@ -281,10 +282,32 @@ static void PumpEvents()
 
 	PROFILE3("dispatch events");
 
+	// Mouse events arrive in window points; the GUI and the camera work in backbuffer pixels.
+	const float dpiScale = g_VideoMode.GetDPIScale();
+
 	SDL_Event_ ev;
 	while (in_poll_event(&ev))
 	{
 		PROFILE2("event");
+		if (dpiScale != 1.0f)
+		{
+			switch (ev.ev.type)
+			{
+			case SDL_MOUSEMOTION:
+				ev.ev.motion.x = static_cast<Sint32>(std::lround(ev.ev.motion.x * dpiScale));
+				ev.ev.motion.y = static_cast<Sint32>(std::lround(ev.ev.motion.y * dpiScale));
+				ev.ev.motion.xrel = static_cast<Sint32>(std::lround(ev.ev.motion.xrel * dpiScale));
+				ev.ev.motion.yrel = static_cast<Sint32>(std::lround(ev.ev.motion.yrel * dpiScale));
+				break;
+			case SDL_MOUSEBUTTONDOWN:
+			case SDL_MOUSEBUTTONUP:
+				ev.ev.button.x = static_cast<Sint32>(std::lround(ev.ev.button.x * dpiScale));
+				ev.ev.button.y = static_cast<Sint32>(std::lround(ev.ev.button.y * dpiScale));
+				break;
+			default:
+				break;
+			}
+		}
 		if (g_GUI)
 		{
 			JS::RootedValue tmpVal(rq.cx);

@@ -103,7 +103,15 @@ public:
 	int GetDesktopBPP() const;
 	int GetDesktopFreq() const;
 
+	/**
+	 * GUI units to backbuffer pixels: gui.scale times the display's pixel density.
+	 */
 	float GetScale() const;
+
+	/**
+	 * Backbuffer pixels per window point (2 on a Retina display with hidpi enabled, else 1).
+	 */
+	float GetDPIScale() const;
 
 	SDL_Window* GetWindow();
 
@@ -123,6 +131,12 @@ private:
 	void DowngradeBackendSettingAfterCreationFailure();
 
 	/**
+	 * The window's drawable size in pixels (the window size in points when there is no window).
+	 */
+	void QueryDrawableSize(int& w, int& h) const;
+	void UpdateDrawableSize();
+
+	/**
 	 * Remember whether Init has been called. (This isn't used for anything
 	 * important, just for verifying that the callers call our methods in
 	 * the right order.)
@@ -139,6 +153,11 @@ private:
 	int m_PreferredFreq = 0;
 
 	float m_Scale = 1.0f;
+
+	// The drawable (backbuffer) size in pixels and its ratio to the window size in points.
+	int m_DrawableW = 0;
+	int m_DrawableH = 0;
+	float m_DPIScale = 1.0f;
 
 	// Config file settings (0 if unspecified)
 	int m_ConfigW = 0;
