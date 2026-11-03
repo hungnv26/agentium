@@ -230,6 +230,7 @@ function AgentiumOwnEntities(player)
 	const cmpRangeManager = Engine.QueryInterface(SYSTEM_ENTITY, IID_RangeManager);
 	const units = [];
 	const structures = [];
+	const animals = [];
 	for (const ent of cmpRangeManager.GetEntitiesByPlayer(player))
 	{
 		const cmpIdentity = Engine.QueryInterface(ent, IID_Identity);
@@ -237,10 +238,12 @@ function AgentiumOwnEntities(player)
 			continue;
 		if (cmpIdentity.HasClass("Structure"))
 			structures.push(ent);
-		else if (cmpIdentity.HasClass("Unit"))
+		else if (cmpIdentity.HasClass("Unit") && !cmpIdentity.HasClass("Animal"))
 			units.push(ent);
+		else if (cmpIdentity.HasClass("Animal"))
+			animals.push(ent);
 	}
-	return { "units": units, "structures": structures };
+	return { "units": units, "structures": structures, "animals": animals };
 }
 
 function AgentiumCivicCentre(player)
@@ -548,6 +551,8 @@ function AgentiumView(player)
 	};
 	if (me.trainingBlocked)
 		view.training_blocked = true;
+	if (own.animals.length)
+		view.livestock = own.animals.length;
 	return view;
 }
 
@@ -563,13 +568,19 @@ function AgentiumStatus()
 	{
 		const p = sim.players[i];
 		const entry = { "id": i, "name": p.name, "civ": p.civ, "team": p.team, "state": p.state, "pop": p.popCount, "phase": p.phase };
-		if (p.statistics)
+		const cmpStatisticsTracker = QueryPlayerIDInterface(i, IID_StatisticsTracker);
+		if (cmpStatisticsTracker)
 		{
-			entry.units_trained = p.statistics.unitsTrained;
-			entry.units_lost = p.statistics.unitsLost;
-			entry.enemy_units_killed = p.statistics.enemyUnitsKilled;
-			entry.buildings_constructed = p.statistics.buildingsConstructed;
-			entry.resources_gathered = p.statistics.resourcesGathered;
+			const stats = cmpStatisticsTracker.GetStatistics();
+			const total = v => typeof v == "number" ? v : v && typeof v == "object" ? Object.values(v).reduce((s, x) => s + total(x), 0) : 0;
+			entry.resources_gathered = stats.resourcesGathered;
+			entry.units_trained = total(stats.unitsTrained);
+			entry.units_lost_value = total(stats.unitsLostValue);
+			entry.enemy_units_killed_value = total(stats.enemyUnitsKilledValue);
+			entry.buildings_constructed = total(stats.buildingsConstructed);
+			entry.buildings_lost_value = total(stats.buildingsLostValue);
+			entry.enemy_buildings_destroyed_value = total(stats.enemyBuildingsDestroyedValue);
+			entry.map_explored = stats.percentMapExplored;
 		}
 		players.push(entry);
 	}

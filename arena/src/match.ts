@@ -264,7 +264,8 @@ export class MatchDirector extends EventEmitter {
     const reason = this.stopReason ?? (error ? "failed" : "stopped");
     const players: PlayerResult[] = this.config.players.map((p, i) => {
       const s = status?.players?.[i] ?? {};
-      const score = Math.round(sumNumbers(s.resources_gathered) + 20 * sumNumbers(s.enemy_units_killed) + 10 * sumNumbers(s.units_trained));
+      // Economy plus military: resources gathered, and the value of what was killed or destroyed.
+      const score = Math.round(sumNumbers(s.resources_gathered) + sumNumbers(s.enemy_units_killed_value) + sumNumbers(s.enemy_buildings_destroyed_value));
       return { player: i + 1, id: playerId(p), civ: p.civ, controller: p.controller, state: s.state ?? "active", score, stats: this.commanders.get(i + 1)?.stats(), statistics: s };
     });
     let winner: number | null = null;

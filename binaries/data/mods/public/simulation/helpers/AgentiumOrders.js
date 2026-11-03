@@ -77,6 +77,7 @@ function AgentiumSelectUnits(player, selector, own, defaultSelector)
 	if (typeof selector == "number")
 		return own.units.filter(ent => ent == selector);
 	const s = String(selector).toLowerCase().trim();
+	// own.units holds no animals (livestock is never ordered around).
 	const alive = own.units.filter(ent => AgentiumPosition(ent) && !AgentiumIsGarrisoned(ent));
 	if (/^\d+$/.test(s))
 		return alive.filter(ent => ent == +s);
