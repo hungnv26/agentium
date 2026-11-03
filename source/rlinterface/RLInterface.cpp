@@ -30,6 +30,7 @@
 #include "ps/Game.h"
 #include "ps/GameSetup/GameSetup.h"
 #include "ps/Loader.h"
+#include "ps/Replay.h"
 #include "scriptinterface/JSON.h"
 #include "scriptinterface/Object.h"
 #include "scriptinterface/ScriptInterface.h"
@@ -41,7 +42,10 @@
 #include "simulation2/system/LocalTurnManager.h"
 #include "simulation2/system/TurnManager.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <js/RootingAPI.h>
 #include <js/TypeDecls.h>
 #include <js/Value.h>
@@ -77,14 +81,32 @@ std::string Interface::SendGameMessage(GameMessage&& msg)
 	std::unique_lock<std::mutex> msgLock(m_MsgLock);
 	ENSURE(m_GameMessage.type == GameMessageType::None);
 	m_GameMessage = std::move(msg);
+	m_MsgPosted.notify_one();
 	m_MsgApplied.wait(msgLock, [this]() { return m_GameMessage.type == GameMessageType::None; });
 	return m_ReturnValue;
 }
 
-std::string Interface::Step(std::vector<GameCommand>&& commands)
+void Interface::WaitForMessage(std::chrono::milliseconds timeout)
+{
+	std::unique_lock<std::mutex> msgLock(m_MsgLock, std::try_to_lock);
+	if (!msgLock.owns_lock())
+		return;
+	m_MsgPosted.wait_for(msgLock, timeout, [this]() { return m_GameMessage.type != GameMessageType::None; });
+}
+
+std::string Interface::Step(std::vector<GameCommand>&& commands, bool wantState, size_t turns)
 {
 	std::lock_guard<std::mutex> lock(m_Lock);
-	return SendGameMessage({ GameMessageType::Commands, std::move(commands) });
+	GameMessage msg{ GameMessageType::Commands, std::move(commands) };
+	msg.wantState = wantState;
+	msg.turns = turns;
+	return SendGameMessage(std::move(msg));
+}
+
+std::string Interface::Stop()
+{
+	std::lock_guard<std::mutex> lock(m_Lock);
+	return SendGameMessage({ GameMessageType::Stop });
 }
 
 std::string Interface::Reset(ScenarioConfig&& scenario)
@@ -101,22 +123,46 @@ std::string Interface::Evaluate(std::string&& code)
 	return SendGameMessage({ GameMessageType::Evaluate });
 }
 
-std::vector<std::string> Interface::GetTemplates(const std::vector<std::string>& names) const
+std::string Interface::GetTemplates(std::vector<std::string>&& names)
 {
 	std::lock_guard<std::mutex> lock(m_Lock);
-	CSimulation2& simulation = *g_Game->GetSimulation2();
-	CmpPtr<ICmpTemplateManager> cmpTemplateManager(simulation.GetSimContext().GetSystemEntity());
+	GameMessage msg{ GameMessageType::Templates };
+	msg.templateNames = std::move(names);
+	return SendGameMessage(std::move(msg));
+}
 
-	std::vector<std::string> templates;
-	for (const std::string& templateName : names)
+/**
+ * Quote @param str as a JSON string literal.
+ */
+static std::string JsonQuote(const std::string& str)
+{
+	std::string out = "\"";
+	for (const char c : str)
 	{
-		const CParamNode* node = cmpTemplateManager->GetTemplate(templateName);
-
-		if (node != nullptr)
-			templates.push_back(node->ToXMLString());
+		if (c == '"' || c == '\\')
+			out += '\\';
+		if (c == '\n')
+			out += "\\n";
+		else
+			out += c;
 	}
+	out += '"';
+	return out;
+}
 
-	return templates;
+/**
+ * Read a query-string variable with Mongoose, @return true if present.
+ */
+static bool GetQueryVar(const char* queryString, const char* name, std::string& out)
+{
+	if (!queryString)
+		return false;
+	char buf[64];
+	const int len = mg_get_var(queryString, strlen(queryString), name, buf, sizeof(buf));
+	if (len < 0)
+		return false;
+	out.assign(buf, len);
+	return true;
 }
 
 void* Interface::MgCallback(mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info)
@@ -169,10 +215,8 @@ void* Interface::MgCallback(mg_event event, struct mg_connection *conn, const st
 				const std::string qs(query_string);
 				scenario.saveReplay = qs.find("saveReplay") != std::string::npos;
 
-				scenario.playerID = 1;
-				char playerID[1];
-				const int len = mg_get_var(query_string, qs.length(), "playerID", playerID, 1);
-				if (len != -1)
+				std::string playerID;
+				if (GetQueryVar(query_string, "playerID", playerID) && !playerID.empty())
 					scenario.playerID = std::stoi(playerID);
 			}
 
@@ -206,7 +250,17 @@ void* Interface::MgCallback(mg_event event, struct mg_connection *conn, const st
 				cmd.json_cmd = line.substr(splitPos + 1);
 				commands.push_back(std::move(cmd));
 			}
-			const std::string gameState = interface->Step(std::move(commands));
+
+			// Options: state=none|full (default full), turns=N (default 1).
+			bool wantState = true;
+			size_t turns = 1;
+			std::string value;
+			if (GetQueryVar(request_info->query_string, "state", value))
+				wantState = value != "none";
+			if (GetQueryVar(request_info->query_string, "turns", value) && !value.empty())
+				turns = std::clamp<size_t>(static_cast<size_t>(std::atol(value.c_str())), 1, 10000);
+
+			const std::string gameState = interface->Step(std::move(commands), wantState, turns);
 			if (gameState.empty())
 			{
 				mg_printf(conn, "%s", notRunningResponse);
@@ -257,9 +311,16 @@ void* Interface::MgCallback(mg_event event, struct mg_connection *conn, const st
 			while (std::getline(postStream, line, '\n'))
 				templateNames.push_back(line);
 
-			for (std::string templateStr : interface->GetTemplates(templateNames))
-				stream << templateStr.c_str() << "\n";
-
+			stream << interface->GetTemplates(std::move(templateNames));
+		}
+		else if (uri == "/stop")
+		{
+			if (!interface->IsGameRunning())
+			{
+				mg_printf(conn, "%s", notRunningResponse);
+				return handled;
+			}
+			stream << interface->Stop();
 		}
 		else
 		{
@@ -316,7 +377,7 @@ bool Interface::TryGetGameMessage(GameMessage& msg)
 	return false;
 }
 
-void Interface::TryApplyMessage()
+bool Interface::TryApplyMessage()
 {
 	const bool isGameStarted = g_Game && g_Game->IsGameStarted();
 	if (m_NeedsGameState && isGameStarted)
@@ -328,16 +389,17 @@ void Interface::TryApplyMessage()
 	}
 
 	if (!m_MsgLock.try_lock())
-		return;
+		return false;
 
 	GameMessage msg;
 	if (!TryGetGameMessage(msg))
 	{
 		m_MsgLock.unlock();
-		return;
+		return false;
 	}
 
 	ApplyMessage(msg);
+	return true;
 }
 
 void Interface::ApplyMessage(const GameMessage& msg)
@@ -406,16 +468,56 @@ void Interface::ApplyMessage(const GameMessage& msg)
 			}
 
 			const u32 deltaRealTime = DEFAULT_TURN_LENGTH;
-			if (nonVisual)
+			for (size_t i = 0; i < msg.turns; ++i)
 			{
-				const double deltaSimTime = deltaRealTime * g_Game->GetSimRate();
-				const size_t maxTurns = static_cast<size_t>(g_Game->GetSimRate());
-				g_Game->GetTurnManager()->Update(deltaSimTime, maxTurns);
+				if (nonVisual)
+				{
+					const double deltaSimTime = deltaRealTime * g_Game->GetSimRate();
+					const size_t maxTurns = static_cast<size_t>(g_Game->GetSimRate());
+					g_Game->GetTurnManager()->Update(deltaSimTime, maxTurns);
+				}
+				else
+					g_Game->Update(deltaRealTime);
+			}
+
+			m_ReturnValue = msg.wantState ? GetGameState() : GetShortStatus();
+			m_MsgApplied.notify_one();
+			m_MsgLock.unlock();
+			break;
+		}
+		case GameMessageType::Templates:
+		{
+			std::stringstream out;
+			if (g_Game)
+			{
+				CSimulation2& simulation = *g_Game->GetSimulation2();
+				CmpPtr<ICmpTemplateManager> cmpTemplateManager(simulation.GetSimContext().GetSystemEntity());
+				for (const std::string& templateName : msg.templateNames)
+				{
+					const CParamNode* node = cmpTemplateManager->GetTemplate(templateName);
+					if (node != nullptr)
+						out << node->ToXMLString() << "\n";
+				}
+			}
+			m_ReturnValue = out.str();
+			m_MsgApplied.notify_one();
+			m_MsgLock.unlock();
+			break;
+		}
+		case GameMessageType::Stop:
+		{
+			std::stringstream out;
+			if (g_Game)
+			{
+				const OsPath replayDir = g_Game->GetReplayLogger().GetDirectory();
+				const u32 turn = g_Game->GetTurnManager() ? g_Game->GetTurnManager()->GetCurrentTurn() : 0;
+				EndGame();
+				out << "{\"ok\":true,\"turn\":" << turn << ",\"replay\":"
+					<< JsonQuote(replayDir.string8()) << "}";
 			}
 			else
-				g_Game->Update(deltaRealTime);
-
-			m_ReturnValue = GetGameState();
+				out << "{\"ok\":false}";
+			m_ReturnValue = out.str();
 			m_MsgApplied.notify_one();
 			m_MsgLock.unlock();
 			break;
@@ -441,6 +543,14 @@ void Interface::ApplyMessage(const GameMessage& msg)
 		default:
 		break;
 	}
+}
+
+std::string Interface::GetShortStatus() const
+{
+	std::stringstream out;
+	const u32 turn = g_Game->GetTurnManager() ? g_Game->GetTurnManager()->GetCurrentTurn() : 0;
+	out << "{\"ok\":true,\"turn\":" << turn << ",\"player\":" << g_Game->GetPlayerID() << "}";
+	return out.str();
 }
 
 std::string Interface::GetGameState() const

@@ -739,7 +739,9 @@ static void RunGameOrAtlas(const std::span<const char* const> argv)
 			InitGraphics(args, 0, installedMods, *g_ScriptContext, *guiScriptInterface);
 			MainControllerInit();
 		}
-		else if (!InitNonVisual(args))
+		// With the RL interface the first game is created by the client's /reset,
+		// so a missing -autostart map is not an error.
+		else if (!InitNonVisual(args) && !args.Has("rl-interface"))
 			g_Shutdown = ShutdownType::Quit;
 
 		try
@@ -761,8 +763,12 @@ static void RunGameOrAtlas(const std::span<const char* const> argv)
 #else
 					Frame(rlInterface ? &*rlInterface : nullptr, fixedFrameFrequency);
 #endif
-				else if(rlInterface)
-					rlInterface->TryApplyMessage();
+				else if (rlInterface)
+				{
+					// Sleep until the client posts a message instead of spinning.
+					if (!rlInterface->TryApplyMessage())
+						rlInterface->WaitForMessage(std::chrono::milliseconds(50));
+				}
 				else
 					NonVisualFrame();
 			}

@@ -22,6 +22,7 @@
 #include "simulation2/helpers/Player.h"
 #include "third_party/mongoose/mongoose.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <exception>
 #include <mutex>
@@ -34,8 +35,8 @@ namespace RL
 {
 struct ScenarioConfig
 {
-	bool saveReplay;
-	player_id_t playerID;
+	bool saveReplay = false;
+	player_id_t playerID = 1;
 	std::string content;
 };
 
@@ -51,6 +52,8 @@ enum class GameMessageType
 	Reset,
 	Commands,
 	Evaluate,
+	Templates,
+	Stop,
 };
 
 /**
@@ -60,6 +63,12 @@ struct GameMessage
 {
 	GameMessageType type;
 	std::vector<GameCommand> commands;
+	/// Commands: whether the full AI game state is returned (false returns a short status).
+	bool wantState = true;
+	/// Commands: how many turns to advance after applying the commands.
+	size_t turns = 1;
+	/// Templates: names of the templates to serialize.
+	std::vector<std::string> templateNames;
 };
 
 struct SetupError : std::exception
@@ -99,18 +108,31 @@ public:
 	/**
 	 * Non-blocking call to process any pending messages from the RL client.
 	 * Updates m_ReturnValue to the gamestate after messages have been processed.
+	 * @return true if a message was processed.
 	 */
-	void TryApplyMessage();
+	bool TryApplyMessage();
+
+	/**
+	 * Block the calling (main) thread until the RL client posts a message or @param timeout
+	 * elapses. Used by the non-visual main loop instead of spinning.
+	 */
+	void WaitForMessage(std::chrono::milliseconds timeout);
 
 private:
 	static void* MgCallback(mg_event event, struct mg_connection *conn, const struct mg_request_info *request_info);
 	static std::string GetRequestContent(struct mg_connection *conn);
 
 	/**
-	 * Process commands, update the simulation by one turn.
-	 * @return the gamestate after processing commands.
+	 * Process commands, update the simulation by @param turns turns.
+	 * @return the gamestate after processing commands if @param wantState, else a short status.
 	 */
-	std::string Step(std::vector<GameCommand>&& commands);
+	std::string Step(std::vector<GameCommand>&& commands, bool wantState, size_t turns);
+
+	/**
+	 * End the running game (flushing its replay) without starting a new one.
+	 * @return a short status including the replay directory.
+	 */
+	std::string Stop();
 
 	/**
 	 * Reset the game state according to scenario, cleaning up existing games if required.
@@ -125,9 +147,9 @@ private:
 	std::string Evaluate(std::string&& code);
 
 	/**
-	 * @return template data for all templates of @param names.
+	 * @return template data (XML, one per line) for all templates of @param names.
 	 */
-	std::vector<std::string> GetTemplates(const std::vector<std::string>& names) const;
+	std::string GetTemplates(std::vector<std::string>&& names);
 
 	/**
 	 * @return true if a game is currently running.
@@ -159,6 +181,11 @@ private:
 	 */
 	std::string GetGameState() const;
 
+	/**
+	 * @return a short JSON status ({"ok":true,"turn":N}) used when the full state is not wanted.
+	 */
+	std::string GetShortStatus() const;
+
 private:
 	GameMessage m_GameMessage{GameMessageType::None};
 	ScenarioConfig m_ScenarioConfig;
@@ -168,6 +195,7 @@ private:
 	mutable std::mutex m_Lock;
 	std::mutex m_MsgLock;
 	std::condition_variable m_MsgApplied;
+	std::condition_variable m_MsgPosted;
 	std::string m_Code;
 
 	mg_context* m_Context;
