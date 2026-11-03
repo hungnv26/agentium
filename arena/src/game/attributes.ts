@@ -1,6 +1,37 @@
 // Game attributes for /reset, in the shape the engine writes at the top of a replay's
 // commands.txt (see simulation/helpers/InitGame.js: a player with a non-empty "AI" gets a bot).
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { MatchConfig, PlayerConfig } from "../card.ts";
+import { REPO_ROOT } from "./process.ts";
+
+const MAPS = join(REPO_ROOT, "binaries", "data", "mods", "public", "maps");
+
+// A random map's settings from its JSON (name, biomes it supports), or {} when unknown.
+export function randomMapSettings(map: string): Record<string, any> {
+  const file = join(MAPS, `${map}.json`);
+  if (!existsSync(file)) return {};
+  try {
+    return JSON.parse(readFileSync(file, "utf8")).settings ?? {};
+  } catch {
+    return {};
+  }
+}
+
+// The biome a random map plays in: the card's, else the first the map supports (a prefix such
+// as "alpine/" means every biome in maps/random/rmbiome/alpine/), else none.
+export function defaultBiome(settings: Record<string, any>, wanted?: string): string | undefined {
+  if (wanted) return wanted;
+  const supported = settings.SupportedBiomes;
+  if (Array.isArray(supported) && supported.length) return String(supported[0]);
+  if (typeof supported === "string" && supported) {
+    if (!supported.endsWith("/")) return supported;
+    const dir = join(MAPS, "random", "rmbiome", supported);
+    const names = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).sort() : [];
+    return names.length ? supported + names[0].slice(0, -5) : undefined;
+  }
+  return undefined;
+}
 
 export const PLAYER_COLORS = [
   { r: 10, g: 10, b: 190 },
@@ -51,9 +82,13 @@ export function gameAttributes(config: MatchConfig, headless: boolean): Record<s
     VictoryConditions: ["conquest"],
   };
   if (config.mapType === "random") {
+    const mapSettings = randomMapSettings(config.map);
+    if (mapSettings.Name) settings.mapName = mapSettings.Name;
     settings.Size = config.size ?? 192;
-    settings.Biome = config.biome;
+    const biome = defaultBiome(mapSettings, config.biome);
+    if (biome) settings.Biome = biome;
     settings.Nomad = false;
+    settings.PlayerPlacement = "circle";
   }
   return {
     settings,
