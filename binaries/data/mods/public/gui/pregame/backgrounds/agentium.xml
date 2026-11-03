@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sprites>
+	<sprite name="background-agentium1-1">
+		<image
+			texture="pregame/backgrounds/agentium1_1.png"
+			round_coordinates="false"
+			wrap_mode="clamp_to_edge"
+		/>
+	</sprite>
+</sprites>
