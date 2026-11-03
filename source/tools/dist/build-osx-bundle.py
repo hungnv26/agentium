@@ -19,17 +19,21 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 
-import dmgbuild
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("bundle_version", help="Bundle version")
 parser.add_argument("--architecture", help="aarch64 (arm64) or x86_64 (amd64)", default="aarch64")
-parser.add_argument("--min_osx", help="Minimum supported OSX version", default="10.12")
+parser.add_argument("--min_osx", help="Minimum supported OSX version", default="10.15")
+parser.add_argument("--bundle_identifier", help="Bundle identifier", default="com.agentium.game")
+parser.add_argument("-s", "--signkey", help="Signature key sha sum (omit for an ad-hoc signature)")
 parser.add_argument(
-    "--bundle_identifier", help="Bundle identifier", default="com.wildfiregames.play0ad"
+    "--no-dmg", help="Stop after the signed .app (no .dmg, no notarization)", action="store_true"
 )
-parser.add_argument("-s", "--signkey", help="Signature key sha sum")
+parser.add_argument(
+    "--rebuild-archives",
+    help="Rebuild archives/ with pyrogenesis -archivebuild even if it exists",
+    action="store_true",
+)
 parser.add_argument("--notarytool_user", help="Apple ID user for notarization")
 parser.add_argument("--notarytool_team", help="Team ID for notarization")
 parser.add_argument("--notarytool_password", help="App password for notarization")
@@ -43,7 +47,37 @@ BUNDLE_IDENTIFIER = args.bundle_identifier
 BUNDLE_VERSION = args.bundle_version
 BUNDLE_MIN_OSX_VERSION = args.min_osx
 
-SIGNKEY = args.signkey
+# No key: an ad-hoc signature, which runs on this machine and on others after
+# "right-click > Open" (Gatekeeper), but cannot be notarized.
+SIGNKEY = args.signkey or "-"
+ADHOC = args.signkey is None
+NOTARIZE = not ADHOC and bool(args.notarytool_user and args.notarytool_team and args.notarytool_password)
+
+
+def codesign(target, *extra):
+    cmd = ["codesign", "-s", SIGNKEY, "-f", *([] if ADHOC else ["--timestamp"]), *extra, target]
+    subprocess.run(cmd, check=True)
+
+
+def build_archives():
+    """Pack each shipped mod into archives/<mod>/<mod>.zip with the engine's archive builder."""
+    for mod in ("mod", "public"):
+        out = f"archives/{mod}"
+        os.makedirs(out, exist_ok=True)
+        print(f"Building archive for {mod} (this takes a while for public)")
+        subprocess.run(
+            [
+                "binaries/system/pyrogenesis",
+                "-mod=mod",
+                f"-archivebuild=binaries/data/mods/{mod}",
+                f"-archivebuild-output={out}/{mod}.zip",
+            ],
+            check=True,
+        )
+        if os.path.isfile(f"binaries/data/mods/{mod}/mod.json"):
+            shutil.copy(f"binaries/data/mods/{mod}/mod.json", out)
+
+
 NOTARYTOOL_USER = args.notarytool_user
 NOTARYTOOL_TEAM = args.notarytool_team
 NOTARYTOOL_PASSWORD = args.notarytool_password
@@ -74,26 +108,21 @@ print("Copying binaries")
 shutil.copy("binaries/system/pyrogenesis", BUNDLE_BIN)
 
 print("Copying libs")
-shutil.copy("binaries/system/libAtlasUI.dylib", BUNDLE_FRAMEWORKS)
-shutil.copy("binaries/system/libCollada.dylib", BUNDLE_FRAMEWORKS)
-shutil.copy("binaries/system/libMoltenVK.dylib", BUNDLE_FRAMEWORKS)
+# libAtlasUI is only built with the Atlas editor (wxWidgets); the game runs without it.
+LIBS = [lib for lib in ("libAtlasUI.dylib", "libCollada.dylib", "libMoltenVK.dylib") if os.path.isfile("binaries/system/" + lib)]
+for lib in LIBS:
+    shutil.copy("binaries/system/" + lib, BUNDLE_FRAMEWORKS)
+if "libAtlasUI.dylib" not in LIBS:
+    print("  (no libAtlasUI.dylib: the scenario editor is not included)")
 
 if not args.dev:
     print("Signing libs")
-    subprocess.run(
-        ["codesign", "-s", SIGNKEY, "-f", "--timestamp", BUNDLE_FRAMEWORKS + "/libAtlasUI.dylib"],
-        check=True,
-    )
-    subprocess.run(
-        ["codesign", "-s", SIGNKEY, "-f", "--timestamp", BUNDLE_FRAMEWORKS + "/libCollada.dylib"],
-        check=True,
-    )
-    subprocess.run(
-        ["codesign", "-s", SIGNKEY, "-f", "--timestamp", BUNDLE_FRAMEWORKS + "/libMoltenVK.dylib"],
-        check=True,
-    )
+    for lib in LIBS:
+        codesign(BUNDLE_FRAMEWORKS + "/" + lib)
 
 if not args.dev:
+    if args.rebuild_archives or not glob.glob("archives/*/*.zip"):
+        build_archives()
     print("Copying archived game data from archives/")
     for mod in glob.glob("archives/*/"):
         print(f"Copying {mod}")
@@ -136,10 +165,13 @@ with open(BUNDLE_CONTENTS + "/Info.plist", "wb") as f:
             "CFBundleShortVersionString": BUNDLE_VERSION,
             "CFBundleDevelopmentRegion": "English",
             "CFBundleInfoDictionaryVersion": "6.0",
+            "NSHighResolutionCapable": True,
+            "NSSupportsAutomaticGraphicsSwitching": True,
+            "LSApplicationCategoryType": "public.app-category.strategy-games",
             "CFBundleIconFile": "0ad",
             "LSHasLocalizedDisplayName": True,
             "LSMinimumSystemVersion": BUNDLE_MIN_OSX_VERSION,
-            "NSHumanReadableCopyright": f"Copyright © {datetime.now(tz=UTC).year} Wildfire Games",
+            "NSHumanReadableCopyright": f"Agentium is a fork of 0 A.D., Copyright © {datetime.now(tz=UTC).year} Wildfire Games and the Agentium contributors. GPL-2.0-or-later; art CC-BY-SA.",
             "UTExportedTypeDeclarations": [
                 {
                     "UTTypeIdentifier": BUNDLE_IDENTIFIER,
@@ -173,24 +205,16 @@ if args.dev:
     print(f"Dev mode bundle complete, located at {BUNDLE_OUTPUT}")
     sys.exit(0)
 
-print("Signing bundle")
-subprocess.run(
-    [
-        "codesign",
-        "-s",
-        SIGNKEY,
-        "-f",
-        "--timestamp",
-        "-o",
-        "runtime",
-        "--entitlements",
-        "source/tools/dist/0ad.entitlements",
-        BUNDLE_OUTPUT,
-    ],
-    check=True,
-)
+print("Signing bundle" + (" (ad-hoc)" if ADHOC else ""))
+codesign(BUNDLE_OUTPUT, "-o", "runtime", "--entitlements", "source/tools/dist/0ad.entitlements")
+
+if args.no_dmg:
+    print(f"Bundle complete, located at {BUNDLE_OUTPUT}")
+    sys.exit(0)
 
 print("Creating .dmg")
+import dmgbuild  # noqa: E402  (pip install dmgbuild)
+
 
 # Package the app into a dmg
 dmgbuild.build_dmg(
@@ -205,19 +229,11 @@ dmgbuild.build_dmg(
 )
 
 print("Signing .dmg")
-subprocess.run(
-    [
-        "codesign",
-        "-s",
-        SIGNKEY,
-        "-f",
-        "--timestamp",
-        "-i",
-        BUNDLE_IDENTIFIER,
-        BUNDLE_DMG_NAME + ".dmg",
-    ],
-    check=True,
-)
+codesign(BUNDLE_DMG_NAME + ".dmg", "-i", BUNDLE_IDENTIFIER)
+
+if not NOTARIZE:
+    print(f"Bundle complete! {BUNDLE_DMG_NAME}.dmg is {'ad-hoc signed' if ADHOC else 'signed'} but not notarized (pass --signkey and the --notarytool_* options for a notarized release).")
+    sys.exit(0)
 
 print("Notarizing .dmg")
 subprocess.run(

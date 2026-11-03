@@ -89,6 +89,10 @@ binaries/data/mods/**/*.jpg
 
 # Vulkan SPIR-V shaders
 binaries/data/mods/*/shaders/spirv
+# Agentium: ship the prebuilt SPIR-V shaders (from the 0 A.D. 0.28.0 release data) so
+# Vulkan via MoltenVK works out of the box on macOS. See source/tools/spirv/README.macos.md
+!binaries/data/mods/mod/shaders/spirv
+!binaries/data/mods/public/shaders/spirv
 
 # eslint
 node_modules
@@ -105,3 +109,7 @@ Thumbs.db
 /.vs/
 /.vscode/
 /.idea/
+
+# macOS bundle output (source/tools/dist/build-osx-bundle.py)
+/Agentium.app
+/*.dmg
