@@ -12,3 +12,6 @@
 
 # Agentium: menu background stored as a plain blob so the GitHub fork serves it without upstream LFS
 binaries/data/mods/public/art/textures/ui/pregame/backgrounds/agentium1_1.png -filter -diff -merge
+
+# Agentium: SPIR-V shader binaries are plain blobs (not LFS); never apply text conversion
+*.spv binary
