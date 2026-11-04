@@ -215,6 +215,21 @@ void CTurnManager::Interpolate(float simFrameLength, float realFrameLength)
 	m_Simulation2.Interpolate(simFrameLength, offset, realFrameLength);
 }
 
+void CTurnManager::AdvanceInterpolation(float simFrameLength)
+{
+	// Never cross 0: that is where Update() would run the next turn, which is
+	// the caller's job here. Interpolate() then holds at offset 1 until it does.
+	m_DeltaSimTime = std::min(m_DeltaSimTime + simFrameLength, 0.0f);
+}
+
+bool CTurnManager::RunSingleTurn()
+{
+	// Update() runs a turn once m_DeltaSimTime reaches 0 and then subtracts a
+	// turn length, which is exactly the "offset 0, sweep to 1" start we want.
+	m_DeltaSimTime = 0.0f;
+	return Update(0.0f, 1);
+}
+
 void CTurnManager::AddCommand(int client, int player, JS::HandleValue data, u32 turn)
 {
 	NETTURN_LOG("AddCommand(client=%d player=%d turn=%d current=%d, ready=%d)\n", client, player, turn, m_CurrentTurn, m_ReadyTurn);

@@ -457,6 +457,37 @@ void CGame::Interpolate(float simFrameLength, float realFrameLength)
 	m_TurnManager->Interpolate(simFrameLength, realFrameLength);
 }
 
+void CGame::UpdateInterpolationOnly(const double deltaRealTime)
+{
+	if (m_Paused || !m_TurnManager)
+		return;
+
+	const double deltaSimTime = deltaRealTime * m_SimRate;
+
+	m_TurnManager->AdvanceInterpolation(deltaSimTime);
+
+	if (CRenderer::IsInitialised())
+		g_Renderer.GetTimeManager().Update(deltaSimTime);
+
+	m_TurnManager->Interpolate(deltaSimTime, deltaRealTime);
+}
+
+void CGame::StepTurn()
+{
+	if (m_Paused || !m_TurnManager)
+		return;
+
+	if (m_TurnManager->RunSingleTurn())
+	{
+		{
+			PROFILE3("gui sim update");
+			g_GUI->SendEventToAll(EventNameSimulationUpdate);
+		}
+
+		GetView()->GetLOSTexture().MakeDirty();
+	}
+}
+
 
 static CColor BrokenColor(0.3f, 0.3f, 0.3f, 1.0f);
 

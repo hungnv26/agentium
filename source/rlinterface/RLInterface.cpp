@@ -477,7 +477,9 @@ void Interface::ApplyMessage(const GameMessage& msg)
 					g_Game->GetTurnManager()->Update(deltaSimTime, maxTurns);
 				}
 				else
-					g_Game->Update(deltaRealTime);
+					// One turn per requested step; the main loop interpolates the
+					// graphics between steps (CGame::UpdateInterpolationOnly).
+					g_Game->StepTurn();
 			}
 
 			m_ReturnValue = msg.wantState ? GetGameState() : GetShortStatus();

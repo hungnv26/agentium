@@ -487,12 +487,22 @@ static void Frame(RL::Interface* rlInterface, const int fixedFrameFrequency)
 	if (rlInterface)
 		rlInterface->TryApplyMessage();
 
-	if (g_Game && g_Game->IsGameStarted() && needUpdate)
+	if (g_Game && g_Game->IsGameStarted())
 	{
-		if (!rlInterface)
-			g_Game->Update(realTimeSinceLastFrame);
+		// With the RL interface the turns are run by its steps (see
+		// RLInterface::TryApplyMessage); here we only keep units and animations
+		// moving smoothly between those steps. This also runs while the window
+		// has no focus, since matches are usually watched from another window.
+		if (rlInterface)
+			g_Game->UpdateInterpolationOnly(realTimeSinceLastFrame);
 
-		g_Game->GetView()->Update(float(realTimeSinceLastFrame));
+		if (needUpdate)
+		{
+			if (!rlInterface)
+				g_Game->Update(realTimeSinceLastFrame);
+
+			g_Game->GetView()->Update(float(realTimeSinceLastFrame));
+		}
 	}
 
 	// Keep us connected to any XMPP servers

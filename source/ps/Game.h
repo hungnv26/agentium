@@ -114,6 +114,22 @@ public:
 
 	void Interpolate(float simFrameLength, float realFrameLength);
 
+	/**
+	 * Per-frame update for games whose turns are driven externally (the RL
+	 * interface): advances the render clock and graphics interpolation by
+	 * deltaRealTime but never runs a simulation turn.
+	 *
+	 * @param deltaRealTime Elapsed real time since last frame, in seconds.
+	 */
+	void UpdateInterpolationOnly(const double deltaRealTime);
+
+	/**
+	 * Run exactly one simulation turn now (RL interface step), without
+	 * advancing the render clock; UpdateInterpolationOnly() then sweeps the
+	 * graphics from this turn to the next over the following frames.
+	 */
+	void StepTurn();
+
 	int GetPlayerID();
 	void SetPlayerID(player_id_t playerID);
 

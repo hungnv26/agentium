@@ -126,6 +126,22 @@ public:
 	void Interpolate(float simFrameLength, float realFrameLength);
 
 	/**
+	 * Advance the graphics interpolation clock without running any turn, for
+	 * callers that drive turns themselves (the RL interface): the offset moves
+	 * from the previous turn towards the current one and then waits there.
+	 * @param simFrameLength Length of the previous frame, in simulation seconds
+	 */
+	void AdvanceInterpolation(float simFrameLength);
+
+	/**
+	 * Run exactly one turn now, whatever the interpolation clock says, and
+	 * restart that clock so the following Interpolate() calls sweep from this
+	 * turn to the next (RL interface).
+	 * @return true if a turn was run.
+	 */
+	bool RunSingleTurn();
+
+	/**
 	 * Called by networking code when a simulation message is received.
 	 */
 	virtual void OnSimulationMessage(CSimulationMessage* msg) = 0;
