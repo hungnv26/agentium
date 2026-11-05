@@ -17,8 +17,16 @@ export interface PlayerConfig {
   behavior?: "random" | "balanced" | "aggressive" | "defensive";
 }
 
+// "battle": every player starts in the city phase with all technologies, full resources and no
+// housing limit (maps/scripts/AgentiumBattle.js), so the match is only about fighting.
+// "standard": a normal game from the village phase.
+export type MatchMode = "battle" | "standard";
+export const BATTLE_RESOURCES = 50_000;
+export const DEFAULT_MAP = "random/mainland";
+
 export interface MatchConfig {
-  map: string; // "skirmishes/acropolis_bay_2p" or "random/alpine_lakes"
+  mode: MatchMode;
+  map: string; // "random/mainland" or "skirmishes/acropolis_bay_2p"
   mapType: "skirmish" | "scenario" | "random";
   players: PlayerConfig[];
   minutes: number; // game minutes before the time limit
@@ -39,7 +47,8 @@ export const DEFAULT_BUDGET = 1_200_000;
 
 export function parseCard(input: any): MatchConfig {
   if (!input || typeof input !== "object") throw new Error("card must be an object");
-  const map = String(input.map ?? "skirmishes/acropolis_bay_2p").replace(/^maps\//, "");
+  const map = String(input.map ?? DEFAULT_MAP).replace(/^maps\//, "");
+  const mode: MatchMode = input.mode === "standard" ? "standard" : "battle";
   const mapType = (input.mapType as MatchConfig["mapType"]) ?? (map.startsWith("random/") ? "random" : map.startsWith("scenarios/") ? "scenario" : "skirmish");
   const players: PlayerConfig[] = (Array.isArray(input.players) ? input.players : []).map((p: any, i: number) => {
     const controller: Controller = p.controller === "petra" || p.controller === "none" ? p.controller : "model";
@@ -62,6 +71,7 @@ export function parseCard(input: any): MatchConfig {
   if (players.length > 8) throw new Error("at most eight players");
   const speed = input.speed === undefined ? 1 : Math.max(0, Number(input.speed) || 0);
   return {
+    mode,
     map,
     mapType,
     players,
@@ -74,7 +84,7 @@ export function parseCard(input: any): MatchConfig {
     ...(input.biome ? { biome: String(input.biome) } : {}),
     ...(input.exploreMap ? { exploreMap: true } : {}),
     ...(input.populationCap ? { populationCap: Number(input.populationCap) } : {}),
-    ...(input.startingResources ? { startingResources: Number(input.startingResources) } : {}),
+    startingResources: Number(input.startingResources) || (mode === "battle" ? BATTLE_RESOURCES : 300),
     turnSeconds: Math.max(2, Number(input.turnSeconds) || 7),
   };
 }

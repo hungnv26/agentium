@@ -5,99 +5,138 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agentium Arena</title>
 <style>
-  :root { --bg: #15130f; --panel: #221e18; --line: #3a332a; --text: #ede4d3; --muted: #a2967f; --accent: #e0a94a; --ok: #7fc47f; --bad: #e06c6c; --mono: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  :root {
+    --bg: #14120e; --panel: #201c16; --panel-2: #191610; --line: #3a332a; --line-soft: #2c2720;
+    --text: #efe6d5; --muted: #a59a84; --accent: #e3ab4c; --accent-ink: #1c1506;
+    --ok: #86c986; --bad: #e57373; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
-  header { padding: 18px 24px 8px; display: flex; align-items: baseline; gap: 16px; }
-  header h1 { margin: 0; font-size: 22px; letter-spacing: 0.08em; color: var(--accent); }
-  header span { color: var(--muted); }
-  main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 8px 24px 32px; }
-  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-  h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-  label { display: block; color: var(--muted); font-size: 12px; margin: 8px 0 2px; }
-  input, select, button { font: inherit; color: var(--text); background: #171410; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
-  input[type=number] { width: 90px; }
-  select { max-width: 100%; }
-  button { cursor: pointer; }
-  button.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); font-weight: 600; padding: 8px 16px; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 48px; }
+  header { text-align: center; padding: 28px 16px 18px; }
+  header h1 { margin: 0; font-size: 26px; letter-spacing: 0.14em; color: var(--accent); font-weight: 700; }
+  header p { margin: 6px 0 0; color: var(--muted); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 18px; }
+  h2 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 0 0 4px; }
+  input, select, button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; width: 100%; min-width: 0; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { cursor: pointer; width: auto; }
   button:disabled { opacity: 0.5; cursor: default; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  .player { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
-  .player .title { font-weight: 600; color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; padding: 11px 34px; font-size: 15px; }
+  button.ghost { padding: 11px 22px; }
+
+  /* The match card: wide, centered, the first thing on the page. */
+  .match { border-color: #4a4032; padding: 22px 24px 20px; }
+  .match h2 { text-align: center; font-size: 13px; }
+  /* Ten controls, two of them double width: two rows of six, three rows of four, or stacked pairs. */
+  .settings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 16px; }
+  .settings .wide { grid-column: span 2; }
+  @media (max-width: 1000px) { .settings { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .settings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .note { margin: 14px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-soft); color: var(--muted); font-size: 13px; text-align: center; }
+  .note b { color: var(--text); font-weight: 600; }
+  .players { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
+  .player { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); }
+  .player .title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .player .swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .player .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .actions { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  #startMsg { flex-basis: 100%; text-align: center; min-height: 1.3em; }
+
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
   .mono { font-family: var(--mono); font-size: 12px; }
-  .log { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; max-height: 260px; overflow: auto; color: var(--muted); background: #121009; border-radius: 6px; padding: 8px; }
+  .log { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; max-height: 220px; overflow: auto; color: var(--muted); background: #110f0a; border-radius: 8px; padding: 10px; margin: 0; }
   .ok { color: var(--ok); } .bad { color: var(--bad); } .muted { color: var(--muted); }
-  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
-  .stack > section + section { margin-top: 16px; }
-  .keys { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; }
-  .keys input { width: 100%; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  .livehead { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-bottom: 8px; }
+  .three { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  .three section { margin-top: 18px; }
+  .keys { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+  a { color: var(--accent); }
 </style>
 </head>
 <body>
-<header><h1>AGENTIUM ARENA</h1><span>AI models playing 0 A.D.</span></header>
-<main>
-  <div class="stack">
-    <section>
-      <h2>Match</h2>
-      <label>Map</label>
-      <select id="map"></select>
-      <div class="row">
-        <div><label>Game minutes</label><input id="minutes" type="number" value="15" min="1" max="180"></div>
-        <div><label>Speed (turns per 200 ms, 0 = fastest)</label><input id="speed" type="number" value="1" min="0" max="50"></div>
-      </div>
-      <div class="row">
-        <div><label>Pacing</label><select id="pacing"><option value="realtime">realtime (models may fall behind)</option><option value="turnbased">turn-based (wait for every model)</option></select></div>
-        <div><label>Display</label><select id="headless"><option value="true">headless</option><option value="false">game window (observer)</option></select></div>
-      </div>
-      <div class="row">
-        <div><label>Players</label><input id="count" type="number" value="2" min="2" max="8"></div>
-        <div><label>Cost cap per model (USD)</label><input id="cap" type="number" value="1" min="0" step="0.5"></div>
-        <div><label>Token budget</label><input id="budget" type="number" value="1200000" min="10000" step="100000"></div>
-      </div>
-      <div id="players"></div>
-      <div class="row" style="margin-top:12px">
-        <button class="primary" id="start">Start match</button>
-        <button id="stop">Stop</button>
-        <span id="startMsg" class="muted"></span>
-      </div>
-    </section>
-    <section>
-      <h2>Provider keys</h2>
-      <div class="keys" id="keys"></div>
-      <p class="muted" style="margin:8px 0 0;font-size:12px">Keys are saved as files in <span class="mono">arena/keys/</span> (or ARENA_KEYS_DIR) and never leave this machine. Local Ollama needs none.</p>
-    </section>
-    <section>
-      <h2>In-game advisor</h2>
-      <p class="muted" style="margin:0 0 6px;font-size:12px">Add these lines to <span class="mono" id="advisorFile"></span> and the Advisor button appears in every single-player game while this service runs.</p>
-      <pre class="log" id="advisorConfig" style="max-height:140px"></pre>
-    </section>
+<header>
+  <h1>AGENTIUM ARENA</h1>
+  <p>AI models commanding armies in 0 A.D.</p>
+</header>
+<div class="wrap">
+
+  <section class="match">
+    <h2>Match</h2>
+    <div class="settings">
+      <div class="wide"><label for="mode">Mode</label>
+        <select id="mode">
+          <option value="battle">Battle: city phase, all technologies, full resources</option>
+          <option value="standard">Standard: a normal game from the village phase</option>
+        </select></div>
+      <div class="wide"><label for="map">Map</label><select id="map"></select></div>
+      <div id="sizeBox"><label for="size">Map size</label><select id="size"></select></div>
+      <div><label for="minutes">Game minutes</label><input id="minutes" type="number" value="15" min="1" max="180"></div>
+      <div><label for="speed">Speed (0 = fastest)</label><input id="speed" type="number" value="1" min="0" max="50"></div>
+      <div><label for="pacing">Pacing</label>
+        <select id="pacing"><option value="realtime">Real time</option><option value="turnbased">Turn-based (wait for models)</option></select></div>
+      <div><label for="headless">Display</label>
+        <select id="headless"><option value="false">Game window (observer)</option><option value="true">Headless</option></select></div>
+      <div><label for="count">Players</label><input id="count" type="number" value="2" min="2" max="8"></div>
+      <div><label for="cap">Cost cap per model, USD</label><input id="cap" type="number" value="1" min="0" step="0.5"></div>
+      <div><label for="budget">Token budget</label><input id="budget" type="number" value="1200000" min="10000" step="100000"></div>
+    </div>
+    <p class="note" id="modeNote"></p>
+    <div class="players" id="players"></div>
+    <div class="actions">
+      <button class="primary" id="start">Start match</button>
+      <button class="ghost" id="stop">Stop</button>
+      <span id="startMsg" class="muted"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Live</h2>
+    <div class="livehead" id="live"><span class="muted">No match running.</span></div>
+    <div class="scroll"><table id="board"><thead><tr><th>Player</th><th>Civ</th><th>State</th><th>Pop</th><th>Phase</th><th>Turns</th><th>Tokens</th><th>Cost</th><th>Last orders</th></tr></thead><tbody></tbody></table></div>
+    <pre class="log" id="log" style="margin-top:12px"></pre>
+  </section>
+
+  <section>
+    <h2>Matches</h2>
+    <div class="scroll"><table id="matches"><thead><tr><th>Id</th><th>Mode</th><th>Map</th><th>Result</th><th>Players and scores</th><th>Game time</th><th>Replay</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <div class="three">
     <section>
       <h2>Ratings</h2>
       <table id="elo"><thead><tr><th>Player</th><th>Elo</th><th>Matches</th><th>Wins</th></tr></thead><tbody></tbody></table>
     </section>
-  </div>
-  <div class="stack">
     <section>
-      <h2>Live</h2>
-      <div id="live" class="muted">No match running.</div>
-      <table id="board" style="margin-top:8px"><thead><tr><th>Player</th><th>Civ</th><th>State</th><th>Pop</th><th>Phase</th><th>Turns</th><th>Tokens</th><th>Cost</th><th>Last orders</th></tr></thead><tbody></tbody></table>
-      <div class="log" id="log" style="margin-top:10px"></div>
+      <h2>Provider keys</h2>
+      <div class="keys" id="keys"></div>
+      <p class="muted" style="margin:10px 0 0;font-size:12px">Saved as files in <span class="mono">arena/keys/</span> (or ARENA_KEYS_DIR); they never leave this machine. Local Ollama needs none.</p>
     </section>
     <section>
-      <h2>Matches</h2>
-      <table id="matches"><thead><tr><th>Id</th><th>Map</th><th>Result</th><th>Players</th><th>Game time</th><th>Replay</th></tr></thead><tbody></tbody></table>
+      <h2>In-game advisor</h2>
+      <p class="muted" style="margin:0 0 8px;font-size:12px">Add these lines to <span class="mono" id="advisorFile"></span> and the Advisor button appears in single-player games while this service runs.</p>
+      <pre class="log" id="advisorConfig" style="max-height:150px"></pre>
     </section>
   </div>
-</main>
+</div>
+
 <script>
 const $ = (s) => document.querySelector(s);
 const api = (path, init) => fetch(path, init).then(async (r) => { const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = { error: t }; } if (!r.ok) throw new Error(j.error?.message ?? j.error ?? r.status); return j; });
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const CIVS = ["athen", "brit", "cart", "gaul", "germ", "han", "iber", "kush", "mace", "maur", "pers", "ptol", "rome", "sele", "spart"];
+const COLORS = ["#2a2ad0", "#e02020", "#32b432", "#f0c814", "#8c1eb4", "#fa8c00", "#1ebec8", "#e65abe"];
+const DEFAULTS = { mode: "battle", map: "random/mainland", size: 192, minutes: 15, speed: 1, pacing: "realtime", headless: "false", count: 2, cap: 1, budget: 1200000 };
+const NOTES = {
+  battle: "<b>Battle:</b> every player starts in the city phase with every technology researched, 50,000 of each resource and no housing limit. No farming or mining, only armies. Scored by what is killed and destroyed.",
+  standard: "<b>Standard:</b> a normal game from the village phase with 300 of each resource. Scored by resources gathered plus what is killed and destroyed.",
+};
 let providers = {}; const modelLists = {};
 const DEFAULT_PLAYERS = [
   { controller: "model", provider: "anthropic", model: "claude-sonnet-5-5", civ: "athen" },
@@ -109,9 +148,13 @@ const DEFAULT_PLAYERS = [
   { controller: "petra", difficulty: 3, civ: "cart" },
   { controller: "petra", difficulty: 3, civ: "gaul" },
 ];
-let players = [];
-try { players = JSON.parse(localStorage.getItem("agentium.players") || "null") || []; } catch {}
+const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; } catch { return fallback; } };
+let players = load("agentium.players", []);
 if (!players.length) players = DEFAULT_PLAYERS.map((p) => ({ ...p }));
+// v2: new defaults (battle mode, random map, game window), so older saved settings are not reused.
+const settings = { ...DEFAULTS, ...load("agentium.settings.v2", {}) };
+const SETTING_IDS = ["mode", "map", "size", "minutes", "speed", "pacing", "headless", "count", "cap", "budget"];
+const saveSettings = () => { for (const id of SETTING_IDS) settings[id] = $("#" + id).value; localStorage.setItem("agentium.settings.v2", JSON.stringify(settings)); };
 
 async function loadModels(provider) {
   if (modelLists[provider]) return modelLists[provider];
@@ -125,14 +168,14 @@ function renderPlayers() {
   for (let i = 0; i < n; i++) {
     const p = players[i] ??= { ...DEFAULT_PLAYERS[i] };
     const div = document.createElement("div"); div.className = "player";
-    div.innerHTML = `<span class="title">Player ${i + 1}</span>
-      <div class="row">
-        <div><label>Controller</label><select data-k="controller"><option value="model">AI model</option><option value="petra">Petra (built-in AI)</option><option value="none">empty</option></select></div>
-        <div><label>Civ</label><select data-k="civ">${CIVS.map((c) => `<option>${c}</option>`).join("")}</select></div>
+    div.innerHTML = `<div class="title"><span class="swatch" style="background:${COLORS[i]}"></span>Player ${i + 1}</div>
+      <div class="fields">
+        <div><label>Controller</label><select data-k="controller"><option value="model">AI model</option><option value="petra">Petra (built-in AI)</option><option value="none">Empty</option></select></div>
+        <div><label>Civilization</label><select data-k="civ">${CIVS.map((c) => `<option>${c}</option>`).join("")}</select></div>
         <div class="model-only"><label>Provider</label><select data-k="provider">${Object.entries(providers).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div>
         <div class="model-only"><label>Model</label><select data-k="model"></select></div>
         <div class="petra-only"><label>Difficulty</label><select data-k="difficulty"><option value="0">0 sandbox</option><option value="1">1 very easy</option><option value="2">2 easy</option><option value="3">3 medium</option><option value="4">4 hard</option><option value="5">5 very hard</option></select></div>
-        <div><label>Team</label><select data-k="team"><option value="-1">none</option><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></div>
+        <div><label>Team</label><select data-k="team"><option value="-1">None</option><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></div>
       </div>`;
     host.appendChild(div);
     const sel = (k) => div.querySelector(`[data-k=${k}]`);
@@ -154,10 +197,17 @@ function renderPlayers() {
   }
 }
 
+function syncMatchForm() {
+  $("#modeNote").innerHTML = NOTES[$("#mode").value];
+  $("#sizeBox").style.display = $("#map").value.startsWith("random/") ? "" : "none";
+}
+
 function card() {
   const n = Math.min(8, Math.max(2, Number($("#count").value) || 2));
+  const map = $("#map").value;
   return {
-    map: $("#map").value, minutes: Number($("#minutes").value), speed: Number($("#speed").value), pacing: $("#pacing").value, headless: $("#headless").value === "true",
+    mode: $("#mode").value, map, minutes: Number($("#minutes").value), speed: Number($("#speed").value), pacing: $("#pacing").value, headless: $("#headless").value === "true",
+    ...(map.startsWith("random/") ? { size: Number($("#size").value) } : {}),
     players: players.slice(0, n).map((p) => p.controller === "model"
       ? { controller: "model", civ: p.civ, team: p.team, model: `${p.provider}:${p.model}`, cap: Number($("#cap").value) || null, budget: Number($("#budget").value) }
       : { controller: p.controller, civ: p.civ, team: p.team, difficulty: p.difficulty }),
@@ -166,7 +216,7 @@ function card() {
 
 async function refreshKeys() {
   const keys = await api("/arena/keys");
-  $("#keys").innerHTML = Object.entries(keys).map(([p, k]) => `<input type="password" placeholder="${esc(providers[p] ?? p)} API key ${k.saved ? `(saved ${esc(k.hint)})` : "(none)"}" data-p="${p}"><button data-save="${p}">Save</button>`).join("");
+  $("#keys").innerHTML = Object.entries(keys).map(([p, k]) => `<input type="password" aria-label="${esc(providers[p] ?? p)} API key" placeholder="${esc(providers[p] ?? p)} ${k.saved ? `(saved ${esc(k.hint)})` : "(none)"}" data-p="${p}"><button data-save="${p}">Save</button>`).join("");
   $("#keys").querySelectorAll("button").forEach((b) => b.onclick = async () => {
     const input = $("#keys").querySelector(`input[data-p=${b.dataset.save}]`);
     if (!input.value.trim()) return;
@@ -180,43 +230,46 @@ async function refreshStatus() {
   const s = await api("/arena/status");
   const m = s.match;
   $("#start").disabled = !!m && ["starting", "running", "finishing"].includes(m.state);
-  if (!m) { $("#live").textContent = "No match running."; $("#board tbody").innerHTML = ""; }
+  if (!m) { $("#live").innerHTML = `<span class="muted">No match running.</span>`; $("#board tbody").innerHTML = ""; }
   else {
     const r = m.result;
-    $("#live").innerHTML = `<span class="pill">${esc(m.state)}</span> ${esc(m.map)} &nbsp; game ${fmtTime(m.gameTime)} &nbsp; turn ${m.turn} &nbsp; ${m.wallSeconds} s wall` +
-      (r ? ` &nbsp; <b class="${r.winner ? "ok" : "muted"}">${esc(r.reason)}: ${r.winner ? `player ${r.winner} (${esc(r.winners[0])}) wins` : "no winner"}</b>` : "");
-    $("#board tbody").innerHTML = m.players.map((p) => { const c = p.commander; return `<tr><td>${p.player} <span class="mono">${esc(p.id)}</span></td><td>${esc(p.civ)}</td><td class="${p.state === "defeated" ? "bad" : p.state === "won" ? "ok" : ""}">${esc(c ? c.status : p.state)}</td><td>${p.pop ?? ""}</td><td>${esc(p.phase ?? "")}</td><td>${c ? c.turns : ""}</td><td>${c ? c.tokens.toLocaleString() : ""}</td><td>${c && c.usd != null ? "$" + c.usd.toFixed(3) : ""}</td><td class="mono muted">${esc((c?.lastOrders ?? []).join(" | ").slice(0, 220))}</td></tr>`; }).join("");
+    $("#live").innerHTML = `<span class="pill">${esc(m.state)}</span><span>${esc(m.mode ?? "")} on ${esc(m.map)}</span><span>game ${fmtTime(m.gameTime)}</span><span class="muted">turn ${m.turn}, ${m.wallSeconds} s wall</span>` +
+      (r ? `<b class="${r.winner ? "ok" : "muted"}">${esc(r.reason)}: ${r.winner ? `player ${r.winner} (${esc(r.winners[0])}) wins` : "no winner"}</b>` : "");
+    $("#board tbody").innerHTML = m.players.map((p) => { const c = p.commander; return `<tr><td>${p.player} <span class="mono">${esc(p.id)}</span></td><td>${esc(p.civ)}</td><td class="${p.state === "defeated" ? "bad" : p.state === "won" ? "ok" : ""}">${esc(c ? c.status : p.state)}</td><td>${p.pop ?? ""}</td><td>${esc(p.phase ?? "")}</td><td>${c ? c.turns : ""}</td><td>${c ? c.tokens.toLocaleString() : ""}</td><td>${c && c.usd != null ? "$" + c.usd.toFixed(3) : ""}</td><td class="mono muted">${esc((c?.lastOrders ?? []).join(" | ").slice(0, 240))}</td></tr>`; }).join("");
   }
-  $("#log").textContent = (s.log ?? []).join("\n");
-  $("#log").scrollTop = $("#log").scrollHeight;
+  const log = $("#log"); const atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+  log.textContent = (s.log ?? []).join("\n");
+  if (atEnd) log.scrollTop = log.scrollHeight;
 }
 async function refreshMatches() {
   const list = await api("/arena/matches");
-  $("#matches tbody").innerHTML = list.map((m) => `<tr><td class="mono">${esc(m.id)}</td><td>${esc(m.map)}</td><td class="${m.reason === "failed" ? "bad" : ""}">${esc(m.reason)}${m.winner ? `: player ${m.winner}` : ""}</td><td class="mono">${m.players.map((p) => `${p.player} ${esc(p.id)} (${esc(p.civ)}) ${p.score}${p.stats?.usd != null ? " $" + p.stats.usd.toFixed(3) : ""}`).join("<br>")}</td><td>${fmtTime(m.gameSeconds)}</td><td>${m.commandsTxt ? `<a href="/replays/${esc(m.id)}/commands.txt">download</a> <button data-watch="${esc(m.id)}">Watch</button>` : ""}</td></tr>`).join("");
+  $("#matches tbody").innerHTML = list.map((m) => `<tr><td class="mono">${esc(m.id)}</td><td>${esc(m.mode ?? "standard")}</td><td>${esc(m.map.replace(/^(random|skirmishes)\//, ""))}</td><td class="${m.reason === "failed" ? "bad" : ""}">${esc(m.reason)}${m.winner ? `: player ${m.winner}` : ""}</td><td class="mono">${m.players.map((p) => `${p.player} ${esc(p.id)} (${esc(p.civ)}) ${p.score}${p.stats?.usd != null ? " $" + p.stats.usd.toFixed(3) : ""}`).join("<br>")}</td><td>${fmtTime(m.gameSeconds)}</td><td>${m.commandsTxt ? `<a href="/replays/${esc(m.id)}/commands.txt">download</a> <button data-watch="${esc(m.id)}">Watch</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="7" class="muted">No matches yet.</td></tr>`;
   $("#matches").querySelectorAll("button[data-watch]").forEach((b) => b.onclick = () => api(`/arena/replay/${b.dataset.watch}/watch`, { method: "POST" }));
   const elo = await api("/arena/elo");
   $("#elo tbody").innerHTML = Object.entries(elo).sort((a, b) => b[1].rating - a[1].rating).map(([id, e]) => `<tr><td class="mono">${esc(id)}</td><td>${e.rating}</td><td>${e.matches}</td><td>${e.wins}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No rated matches yet.</td></tr>`;
 }
 
 $("#start").onclick = async () => {
-  $("#startMsg").textContent = "";
-  try { const r = await api("/arena/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(card()) }); $("#startMsg").textContent = `started ${r.id}`; }
-  catch (e) { $("#startMsg").textContent = e.message; $("#startMsg").className = "bad"; }
+  const msg = $("#startMsg"); msg.textContent = ""; msg.className = "muted";
+  try { const r = await api("/arena/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(card()) }); msg.textContent = `Started ${r.id}`; refreshStatus(); }
+  catch (e) { msg.textContent = e.message; msg.className = "bad"; }
 };
 $("#stop").onclick = () => api("/arena/stop", { method: "POST" });
-$("#count").addEventListener("change", renderPlayers);
 
 (async () => {
   const maps = await api("/arena/maps");
-  $("#map").innerHTML = `<optgroup label="Skirmish">${maps.skirmishes.map((m) => `<option value="skirmishes/${m}">${m}</option>`).join("")}</optgroup><optgroup label="Random">${maps.random.map((m) => `<option value="random/${m}">${m}</option>`).join("")}</optgroup>`;
-  $("#map").value = localStorage.getItem("agentium.map") || "skirmishes/acropolis_bay_2p";
-  $("#map").addEventListener("change", () => localStorage.setItem("agentium.map", $("#map").value));
+  const label = (m) => m.replace(/_/g, " ");
+  $("#map").innerHTML = `<optgroup label="Random maps">${maps.random.map((m) => `<option value="random/${m}">${label(m)}</option>`).join("")}</optgroup><optgroup label="Skirmish maps">${maps.skirmishes.map((m) => `<option value="skirmishes/${m}">${label(m)}</option>`).join("")}</optgroup>`;
+  $("#size").innerHTML = (maps.sizes ?? []).map((s) => `<option value="${s.tiles}">${esc(s.name)} (${s.tiles})</option>`).join("");
+  for (const id of SETTING_IDS) { const el = $("#" + id); el.value = settings[id]; if (el.value === "" || el.selectedIndex === -1) el.value = DEFAULTS[id]; }
+  for (const id of SETTING_IDS) $("#" + id).addEventListener("change", () => { saveSettings(); syncMatchForm(); if (id === "count") renderPlayers(); });
+  syncMatchForm();
   await loadModels("anthropic");
   await refreshKeys();
-  try { const a = await api("/arena/advisor-config"); $("#advisorFile").textContent = a.file; $("#advisorConfig").textContent = a.lines.join("\n"); } catch {}
   renderPlayers();
+  try { const a = await api("/arena/advisor-config"); $("#advisorFile").textContent = a.file; $("#advisorConfig").textContent = a.lines.join("\n"); } catch {}
   await refreshStatus(); await refreshMatches();
-  setInterval(refreshStatus, 2000); setInterval(refreshMatches, 10000);
+  setInterval(() => refreshStatus().catch(() => {}), 2000); setInterval(() => refreshMatches().catch(() => {}), 10000);
 })();
 </script>
 </body>

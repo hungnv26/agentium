@@ -32,6 +32,7 @@ export interface PlayerResult {
 
 export interface MatchResult {
   id: string;
+  mode: string;
   map: string;
   reason: "conquest" | "time limit" | "stopped" | "failed";
   winner: number | null; // player number
@@ -109,6 +110,7 @@ export class MatchDirector extends EventEmitter {
     return {
       id: this.id,
       state: this.state,
+      mode: this.config.mode,
       map: this.config.map,
       gameTime: this.gameTime,
       turn: this.turn,
@@ -183,7 +185,7 @@ export class MatchDirector extends EventEmitter {
     this.config.players.forEach((p, i) => {
       if (p.controller !== "model") return;
       const player = i + 1;
-      const c = new Commander({ player, name: p.name ?? p.model!, civ: p.civ, model: p.model!, budget: p.budget!, cap: p.cap, minutes: this.config.minutes }, link, this.modelClient);
+      const c = new Commander({ player, name: p.name ?? p.model!, civ: p.civ, model: p.model!, budget: p.budget!, cap: p.cap, minutes: this.config.minutes, mode: this.config.mode }, link, this.modelClient);
       c.on("log", (t) => this.logs.turn(player, t));
       c.on("turn", (s: CommanderStats) => {
         this.turnsThisCycle.add(player);
@@ -264,8 +266,10 @@ export class MatchDirector extends EventEmitter {
     const reason = this.stopReason ?? (error ? "failed" : "stopped");
     const players: PlayerResult[] = this.config.players.map((p, i) => {
       const s = status?.players?.[i] ?? {};
-      // Economy plus military: resources gathered, and the value of what was killed or destroyed.
-      const score = Math.round(sumNumbers(s.resources_gathered) + sumNumbers(s.enemy_units_killed_value) + sumNumbers(s.enemy_buildings_destroyed_value));
+      // Standard: economy plus military (resources gathered, and the value of what was killed or
+      // destroyed). Battle: only the fighting counts.
+      const military = sumNumbers(s.enemy_units_killed_value) + sumNumbers(s.enemy_buildings_destroyed_value);
+      const score = Math.round(this.config.mode === "battle" ? military : sumNumbers(s.resources_gathered) + military);
       return { player: i + 1, id: playerId(p), civ: p.civ, controller: p.controller, state: s.state ?? "active", score, stats: this.commanders.get(i + 1)?.stats(), statistics: s };
     });
     let winner: number | null = null;
@@ -279,6 +283,7 @@ export class MatchDirector extends EventEmitter {
     const losers = players.filter((p) => p.player !== winner && p.controller !== "none").map((p) => p.id);
     const result: MatchResult = {
       id: this.id,
+      mode: this.config.mode,
       map: this.config.map,
       reason,
       winner,

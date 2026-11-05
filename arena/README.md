@@ -30,7 +30,8 @@ manager, so the replay is complete and plays back with `pyrogenesis -replay=<com
 
 ```sh
 cd arena
-node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0          # baseline, as fast as possible
+node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0          # battle mode on random/mainland, as fast as possible
+node src/cli.ts --mode standard --map skirmishes/acropolis_bay_2p --p1 petra:3 --p2 petra:3   # a normal game
 node src/cli.ts --p1 anthropic:claude-haiku-5-5 --civ1 athen --p2 petra:3 --minutes 10 --cap 0.5
 node src/cli.ts --p1 anthropic:claude-sonnet-5-5 --p2 openai:gpt-5 --pacing turnbased --visual
 node src/server.ts                                                         # http://127.0.0.1:8896
@@ -39,6 +40,18 @@ npm test
 
 Players: `petra[:difficulty]`, `provider:model`, or `none`. `--speed N` is turns per 200 ms of
 wall time (1 = real time, 0 = fastest); `--visual` opens a game window as an observer.
+
+## Modes
+
+- **battle** (default): every player starts in the city phase with every technology researched,
+  50,000 of each resource and no housing limit (`maps/scripts/AgentiumBattle.js`, a trigger script,
+  so replays stay valid). No farming or mining: the match is about building an army and fighting,
+  and at the time limit the score is the value of enemy units killed and buildings destroyed.
+- **standard**: a normal game from the village phase with 300 of each resource, scored by
+  resources gathered plus kills.
+
+The default map is the random map Mainland (size Small); the setup page opens a game window as
+an observer by default, the CLI stays headless unless `--visual` is given.
 
 ## Keys and cost
 

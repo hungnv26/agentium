@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Commander, type ChatResult, type GameLink, type ModelClient, type TurnLog } from "../src/commander.ts";
 import { readElo, updateElo } from "../src/elo.ts";
-import { TOOL_NAMES } from "../src/orders.ts";
+import { SYSTEM_PROMPT, TOOL_NAMES } from "../src/orders.ts";
 import { newMemory, remember, turnText } from "../src/view.ts";
 
 const view = (time_s: number, extra: Record<string, unknown> = {}) => ({
@@ -100,6 +100,14 @@ test("a defeated player stops its commander", async () => {
   await c.start();
   assert.equal(c.status, "defeated");
   assert.equal(c.turns, 0);
+});
+
+test("battle mode gets the fighting briefing", () => {
+  const battle = SYSTEM_PROMPT("X", "athen", 15, "battle");
+  assert.match(battle, /battle match/);
+  assert.match(battle, /50,000 of each resource/);
+  assert.doesNotMatch(battle, /Four resources/);
+  assert.match(SYSTEM_PROMPT("X", "athen", 15), /Four resources/);
 });
 
 test("elo rewards the winner", () => {

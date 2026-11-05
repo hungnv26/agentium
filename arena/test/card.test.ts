@@ -7,6 +7,14 @@ test("parseCard fills defaults and validates", () => {
   const c = parseCard({ map: "maps/skirmishes/acropolis_bay_2p", players: [{ controller: "model", model: "anthropic:claude-haiku-5-5", civ: "athen", cap: "0.5" }, { controller: "petra", difficulty: 4, civ: "rome" }], minutes: "10", speed: "2" });
   assert.equal(c.map, "skirmishes/acropolis_bay_2p");
   assert.equal(c.mapType, "skirmish");
+  assert.equal(c.mode, "battle");
+  assert.equal(c.startingResources, 50_000);
+  const d = parseCard({ players: [{ controller: "petra" }, { controller: "petra" }] });
+  assert.equal(d.map, "random/mainland");
+  assert.equal(d.mapType, "random");
+  const std = parseCard({ mode: "standard", players: [{ controller: "petra" }, { controller: "petra" }] });
+  assert.equal(std.mode, "standard");
+  assert.equal(std.startingResources, 300);
   assert.equal(c.minutes, 10);
   assert.equal(c.speed, 2);
   assert.equal(c.pacing, "realtime");
@@ -30,6 +38,11 @@ test("gameAttributes matches the replay start line shape", () => {
   assert.equal(a.settings.Seed, 7);
   assert.deepEqual(a.settings.VictoryConditions, ["conquest"]);
   assert.equal(a.settings.TriggerScripts[0], "scripts/NonVisualTrigger.js");
+  assert.equal(a.settings.TriggerScripts.at(-1), "scripts/AgentiumBattle.js");
+  assert.equal(a.settings.StartingResources, 50_000);
+  const standard = gameAttributes(parseCard({ mode: "standard", map: "skirmishes/acropolis_bay_2p", players: [{ controller: "petra" }, { controller: "petra" }] }), true) as any;
+  assert.ok(!standard.settings.TriggerScripts.includes("scripts/AgentiumBattle.js"));
+  assert.equal(standard.settings.StartingResources, 300);
   assert.equal(a.settings.PlayerData.length, 2);
   assert.equal(a.settings.PlayerData[0].AI, "");
   assert.equal(a.settings.PlayerData[0].Civ, "athen");

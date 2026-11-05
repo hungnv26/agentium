@@ -1,5 +1,7 @@
-// Run one match from the command line and print the result.
-//   node src/cli.ts --map skirmishes/acropolis_bay_2p --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0
+// Run one match from the command line and print the result. Defaults: battle mode (city phase,
+// all technologies, full resources) on the random map Mainland; --mode standard for a normal game.
+//   node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0
+//   node src/cli.ts --mode standard --map skirmishes/acropolis_bay_2p --p1 petra:3 --p2 petra:3
 //   node src/cli.ts --p1 anthropic:claude-haiku-5-5 --civ1 athen --p2 petra:3 --minutes 10 --cap 0.5
 // Players: "petra[:difficulty]", "provider:model", or "none". --visual opens a game window;
 // --pacing turnbased waits for every model each turn; --speed N turns per 200 ms (0 = fastest).
@@ -33,7 +35,8 @@ if (players.length < 2) {
 }
 
 const config = parseCard({
-  map: args.get("map") ?? "skirmishes/acropolis_bay_2p",
+  mode: args.get("mode"),
+  map: args.get("map"),
   players,
   minutes: args.get("minutes") ?? 15,
   speed: args.get("speed") ?? (players.some((p) => p.controller === "model") ? 1 : 0),

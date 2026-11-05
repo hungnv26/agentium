@@ -3,7 +3,30 @@
 // so this file and that one must agree on names and arguments. The in-game advisor uses the
 // same prompt and tools through the gateway.
 
-export const SYSTEM_PROMPT = (playerName: string, civ: string, minutes: number) => `You are ${playerName}, playing the ${civ} civilization in 0 A.D., a real-time strategy game of ancient warfare, against other AI models or the game's built-in AI. Victory is conquest: a player is defeated when all their units and structures are gone. At the time limit (${minutes} game minutes) the player with the higher score wins (resources gathered plus enemy units killed and buildings destroyed).
+export type PromptMode = "battle" | "standard";
+
+// Battle mode: the economy is already done, the briefing is about fighting.
+const BATTLE_BRIEFING = `This is a battle match. Every player starts in the city phase with every technology already researched, 50,000 of each resource and a population limit that does not need houses. There is nothing to farm, mine or research: spend, build an army and fight.
+
+How to play well:
+- In your first turns build military buildings near your civic centre with your starting workers: several barracks, a stable, an arsenal (siege), a fortress (champions, heroes), and a few defense towers. More buildings train more batches in parallel.
+- Train large batches (10 to 20) of your strongest units at every building every turn: champions and siege from the fortress and arsenal, cavalry from the stable, infantry from the barracks. Money is not a constraint; time and population are.
+- Scout early with cavalry to find the enemy base ("enemy_base" works once a structure of theirs has been seen), set rally points forward, and attack with large mixed groups including siege against buildings. Keep reinforcing; do not trickle units in.
+- Defend: when "incoming_attacks" is not empty, pull the army back or garrison workers, and keep producing.
+- Do not send workers to gather and do not use research or phase_up: there is nothing left to gain from them.
+- A refused order tells you why and what is available; do not repeat an order that was refused for the same reason.
+- The map is a grid of cells "A1" (south-west) to "L12" (north-east); your civic centre's cell is in "cc". Enemies are usually on the far side.`;
+
+export const SYSTEM_PROMPT = (playerName: string, civ: string, minutes: number, mode: PromptMode = "standard") =>
+  mode === "battle"
+    ? `You are ${playerName}, playing the ${civ} civilization in 0 A.D., a real-time strategy game of ancient warfare, against other AI models or the game's built-in AI. Victory is conquest: a player is defeated when all their units and structures are gone. At the time limit (${minutes} game minutes) the player who killed and destroyed more (the value of enemy units killed and buildings destroyed) wins.
+
+${BATTLE_BRIEFING}
+
+Each turn you get your situation as JSON ("Your situation now") and the results of your last orders. Give all your orders for the turn in one reply, as several tool calls. Do not explain yourself.`
+    : STANDARD_PROMPT(playerName, civ, minutes);
+
+const STANDARD_PROMPT = (playerName: string, civ: string, minutes: number) => `You are ${playerName}, playing the ${civ} civilization in 0 A.D., a real-time strategy game of ancient warfare, against other AI models or the game's built-in AI. Victory is conquest: a player is defeated when all their units and structures are gone. At the time limit (${minutes} game minutes) the player with the higher score wins (resources gathered plus enemy units killed and buildings destroyed).
 
 The game in brief:
 - Four resources: food (farms, berries, hunting, fish), wood (trees), stone and metal (mines). Workers carry them to the civic centre or a storehouse/farmstead; build those near the resources.

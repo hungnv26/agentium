@@ -78,7 +78,7 @@ export function gameAttributes(config: MatchConfig, headless: boolean): Record<s
     Seed: config.seed ?? 0,
     AISeed: config.seed ?? 0,
     StartingResources: config.startingResources ?? 300,
-    TriggerScripts: [...(headless ? ["scripts/NonVisualTrigger.js"] : []), "scripts/TriggerHelper.js", "scripts/ConquestCommon.js", "scripts/Conquest.js"],
+    TriggerScripts: [...(headless ? ["scripts/NonVisualTrigger.js"] : []), "scripts/TriggerHelper.js", "scripts/ConquestCommon.js", "scripts/Conquest.js", ...(config.mode === "battle" ? ["scripts/AgentiumBattle.js"] : [])],
     VictoryConditions: ["conquest"],
   };
   if (config.mapType === "random") {

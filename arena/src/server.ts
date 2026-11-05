@@ -34,10 +34,15 @@ function listMatches(): MatchResult[] {
     .map((f) => JSON.parse(readFileSync(join(MATCHES, f), "utf8")));
 }
 
-function listMaps(): { skirmishes: string[]; random: string[] } {
+function listMaps(): { skirmishes: string[]; random: string[]; sizes: { name: string; tiles: number }[] } {
   const mods = join(REPO_ROOT, "binaries", "data", "mods", "public", "maps");
   const names = (dir: string, ext: string) => (existsSync(dir) ? [...new Set(readdirSync(dir).filter((f) => f.endsWith(ext)).map((f) => f.slice(0, -ext.length)))].sort() : []);
-  return { skirmishes: names(join(mods, "skirmishes"), ".xml"), random: names(join(mods, "random"), ".json").filter((n) => !/^(rmgen|rmbiome|tests|heightmap)/.test(n)) };
+  let sizes: { name: string; tiles: number }[] = [];
+  try {
+    const file = join(REPO_ROOT, "binaries", "data", "mods", "public", "simulation", "data", "settings", "map_sizes.json");
+    sizes = JSON.parse(readFileSync(file, "utf8")).Data.map((s: any) => ({ name: s.Name, tiles: s.Tiles }));
+  } catch {}
+  return { skirmishes: names(join(mods, "skirmishes"), ".xml"), random: names(join(mods, "random"), ".json").filter((n) => !/^(rmgen|rmbiome|tests|heightmap)/.test(n)), sizes };
 }
 
 async function startMatch(card: unknown): Promise<Record<string, unknown>> {

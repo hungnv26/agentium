@@ -4,7 +4,7 @@
 // tool calls; the results open the next turn. The game never waits for a slow model unless the
 // match is turn-based. Out of budget, the player is frozen: units keep their last orders.
 import { EventEmitter } from "node:events";
-import { SYSTEM_PROMPT, TOOLS } from "./orders.ts";
+import { SYSTEM_PROMPT, TOOLS, type PromptMode } from "./orders.ts";
 import { newMemory, turnText, type SideMemory } from "./view.ts";
 
 export interface GameLink {
@@ -79,6 +79,7 @@ export class Commander extends EventEmitter {
   readonly model: string;
   readonly budget: number;
   readonly minutes: number;
+  readonly mode: PromptMode;
   status: CommanderStatus = "starting";
   turns = 0;
   tokens = 0;
@@ -95,7 +96,7 @@ export class Commander extends EventEmitter {
   private link: GameLink;
   private client: ModelClient;
 
-  constructor(opts: { player: number; name: string; civ: string; model: string; budget: number; cap?: number | null; minutes: number }, link: GameLink, client: ModelClient) {
+  constructor(opts: { player: number; name: string; civ: string; model: string; budget: number; cap?: number | null; minutes: number; mode?: PromptMode }, link: GameLink, client: ModelClient) {
     super();
     this.player = opts.player;
     this.name = opts.name;
@@ -104,6 +105,7 @@ export class Commander extends EventEmitter {
     this.budget = opts.budget;
     this.cap = opts.cap ?? null;
     this.minutes = opts.minutes;
+    this.mode = opts.mode ?? "standard";
     this.link = link;
     this.client = client;
   }
@@ -173,7 +175,7 @@ export class Commander extends EventEmitter {
       try {
         reply = await this.client.chat(this.model, {
           messages: [
-            { role: "system", content: SYSTEM_PROMPT(this.name, this.civ, this.minutes) },
+            { role: "system", content: SYSTEM_PROMPT(this.name, this.civ, this.minutes, this.mode) },
             { role: "user", content: prompt },
           ],
           tools: TOOLS,
