@@ -54,6 +54,7 @@ enum class GameMessageType
 	Evaluate,
 	Templates,
 	Stop,
+	Outro,
 };
 
 /**
@@ -69,6 +70,9 @@ struct GameMessage
 	size_t turns = 1;
 	/// Templates: names of the templates to serialize.
 	std::vector<std::string> templateNames;
+	/// Outro: how long the frozen last moment is held, then how long the fade to black takes.
+	double holdSeconds = 0.0;
+	double fadeSeconds = 0.0;
 };
 
 struct SetupError : std::exception
@@ -133,6 +137,15 @@ private:
 	 * @return a short status including the replay directory.
 	 */
 	std::string Stop();
+
+	/**
+	 * Start the ending sequence of a watched game: the session page freezes the
+	 * game on its last moment, holds it for @param holdSeconds, then fades the
+	 * picture and the sound out over @param fadeSeconds. The game keeps running
+	 * until the client calls /stop or quits it.
+	 * @return {"ok":true}, or {"ok":false} without a window to show it in.
+	 */
+	std::string Outro(double holdSeconds, double fadeSeconds);
 
 	/**
 	 * Reset the game state according to scenario, cleaning up existing games if required.

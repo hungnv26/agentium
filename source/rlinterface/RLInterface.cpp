@@ -109,6 +109,15 @@ std::string Interface::Stop()
 	return SendGameMessage({ GameMessageType::Stop });
 }
 
+std::string Interface::Outro(double holdSeconds, double fadeSeconds)
+{
+	std::lock_guard<std::mutex> lock(m_Lock);
+	GameMessage msg{ GameMessageType::Outro };
+	msg.holdSeconds = holdSeconds;
+	msg.fadeSeconds = fadeSeconds;
+	return SendGameMessage(std::move(msg));
+}
+
 std::string Interface::Reset(ScenarioConfig&& scenario)
 {
 	std::lock_guard<std::mutex> lock(m_Lock);
@@ -322,6 +331,22 @@ void* Interface::MgCallback(mg_event event, struct mg_connection *conn, const st
 			}
 			stream << interface->Stop();
 		}
+		else if (uri == "/outro")
+		{
+			if (!interface->IsGameRunning())
+			{
+				mg_printf(conn, "%s", notRunningResponse);
+				return handled;
+			}
+			double holdSeconds = 5.0;
+			double fadeSeconds = 2.5;
+			std::string value;
+			if (GetQueryVar(request_info->query_string, "hold", value) && !value.empty())
+				holdSeconds = std::clamp(std::atof(value.c_str()), 0.0, 600.0);
+			if (GetQueryVar(request_info->query_string, "fade", value) && !value.empty())
+				fadeSeconds = std::clamp(std::atof(value.c_str()), 0.0, 60.0);
+			stream << interface->Outro(holdSeconds, fadeSeconds);
+		}
 		else
 		{
 			mg_printf(conn, "%s", header404);
@@ -520,6 +545,25 @@ void Interface::ApplyMessage(const GameMessage& msg)
 			else
 				out << "{\"ok\":false}";
 			m_ReturnValue = out.str();
+			m_MsgApplied.notify_one();
+			m_MsgLock.unlock();
+			break;
+		}
+		case GameMessageType::Outro:
+		{
+			// The session page does the rest (gui/session/outro/Outro.js): it
+			// pauses the game, holds, then fades the picture and the sound out.
+			if (g_GUI && g_Game)
+			{
+				ScriptRequest rq(g_GUI->GetScriptInterface());
+				JS::RootedValueArray<2> paramData(rq.cx);
+				paramData[0].setNumber(msg.holdSeconds);
+				paramData[1].setNumber(msg.fadeSeconds);
+				g_GUI->SendEventToAll("AgentiumOutro", paramData);
+				m_ReturnValue = "{\"ok\":true}";
+			}
+			else
+				m_ReturnValue = "{\"ok\":false}";
 			m_MsgApplied.notify_one();
 			m_MsgLock.unlock();
 			break;
