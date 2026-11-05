@@ -1,5 +1,6 @@
 // Run one match from the command line and print the result. Defaults: battle mode (city phase,
-// all technologies, full resources) on the random map Mainland; --mode standard for a normal game.
+// all technologies, full resources) on a random map with random civilisations; --mode standard
+// for a normal game, --map random/mainland and --civ1 athen --civ2 rome to choose them.
 //   node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0
 //   node src/cli.ts --mode standard --map skirmishes/acropolis_bay_2p --p1 petra:3 --p2 petra:3
 //   node src/cli.ts --p1 anthropic:claude-haiku-5-5 --civ1 athen --p2 petra:3 --minutes 10 --cap 0.5
@@ -46,6 +47,8 @@ const config = parseCard({
   size: args.get("size"),
   biome: args.get("biome"),
   turnSeconds: args.get("turn-seconds"),
+  endHoldSeconds: args.get("end-hold"),
+  endFadeSeconds: args.get("end-fade"),
 });
 
 const director = new MatchDirector(config, makeModelClient(arenaCall));

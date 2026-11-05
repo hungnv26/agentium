@@ -4,6 +4,7 @@
 //   POST /step?state=none&turns=N       lines "pid;{command json}"  -> {ok, turn, player}
 //   POST /evaluate                      JS in the simulation global -> JSON of the result
 //   POST /stop                                                      -> {ok, turn, replay}
+//   POST /outro?hold=S&fade=S           (window only)               -> {ok}: freeze, hold, fade to black
 //   POST /templates                     template names, one per line
 
 export interface StepResult {
@@ -78,6 +79,18 @@ export class RlClient {
       return JSON.parse(await this.post("/stop", "")) as StopResult;
     } catch (e) {
       return { ok: false };
+    }
+  }
+
+  // Starts the ending of a watched match: the game freezes on its last moment, holds it for
+  // `hold` seconds, then fades the picture and the sound out over `fade` seconds. The call
+  // returns at once; the game stays up until stop() and the process is ended. Not ok without
+  // a window.
+  async outro(hold: number, fade: number): Promise<boolean> {
+    try {
+      return !!JSON.parse(await this.post(`/outro?hold=${hold}&fade=${fade}`, "", 10_000)).ok;
+    } catch {
+      return false;
     }
   }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseCard, playerId } from "../src/card.ts";
-import { gameAttributes } from "../src/game/attributes.ts";
+import { CIVS, gameAttributes, pickRandomCivs, pickRandomMap, randomMapPool } from "../src/game/attributes.ts";
 
 test("parseCard fills defaults and validates", () => {
   const c = parseCard({ map: "maps/skirmishes/acropolis_bay_2p", players: [{ controller: "model", model: "anthropic:claude-haiku-5-5", civ: "athen", cap: "0.5" }, { controller: "petra", difficulty: 4, civ: "rome" }], minutes: "10", speed: "2" });
@@ -10,8 +10,20 @@ test("parseCard fills defaults and validates", () => {
   assert.equal(c.mode, "battle");
   assert.equal(c.startingResources, 50_000);
   const d = parseCard({ players: [{ controller: "petra" }, { controller: "petra" }] });
-  assert.equal(d.map, "random/mainland");
+  // No map and no civs: a random land map (with one of its biomes) and different random civs.
+  assert.match(d.map, /^random\/[a-z_]+$/);
+  assert.ok(randomMapPool().includes(d.map.slice(7)));
   assert.equal(d.mapType, "random");
+  assert.ok(CIVS.includes(d.players[0].civ) && CIVS.includes(d.players[1].civ));
+  assert.notEqual(d.players[0].civ, d.players[1].civ);
+  const pool = randomMapPool();
+  assert.ok(pool.includes("mainland") && pool.length > 20);
+  for (const sea of ["aegean_sea", "islands", "survivalofthefittest", "unknown", "wall_demo"]) assert.ok(!pool.includes(sea), sea);
+  const mixed = parseCard({ map: "random", players: [{ controller: "petra", civ: "rome" }, { controller: "petra", civ: "random" }] });
+  assert.equal(mixed.players[0].civ, "rome");
+  assert.notEqual(mixed.players[1].civ, "rome");
+  assert.deepEqual(pickRandomCivs(2, [], () => 0), ["athen", "brit"]);
+  assert.equal(pickRandomMap(() => 0).map, `random/${pool[0]}`);
   const std = parseCard({ mode: "standard", players: [{ controller: "petra" }, { controller: "petra" }] });
   assert.equal(std.mode, "standard");
   assert.equal(std.startingResources, 300);
@@ -21,6 +33,12 @@ test("parseCard fills defaults and validates", () => {
   assert.equal(c.headless, true);
   assert.equal(c.players[0].cap, 0.5);
   assert.equal(c.players[1].difficulty, 4);
+  // The ending of a watched match: hold the last moment, then fade out.
+  assert.equal(c.endHoldSeconds, 5);
+  assert.equal(c.endFadeSeconds, 2.5);
+  const quick = parseCard({ endHoldSeconds: 0, endFadeSeconds: "1.5", players: [{ controller: "petra" }, { controller: "petra" }] });
+  assert.equal(quick.endHoldSeconds, 0);
+  assert.equal(quick.endFadeSeconds, 1.5);
   assert.equal(playerId(c.players[0]), "anthropic:claude-haiku-5-5");
   assert.equal(playerId(c.players[1]), "petra:4");
   assert.equal(parseCard({ map: "random/alpine_lakes", players: [{ controller: "petra" }, { controller: "petra" }] }).mapType, "random");

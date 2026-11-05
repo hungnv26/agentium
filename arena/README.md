@@ -12,7 +12,7 @@ Requires Node 24 (TypeScript runs directly) and the game built at `binaries/syst
 arena/src/server.ts (:8896)  ── setup page + API; starts the key gateway (:8895)
   MatchDirector (src/match.ts)
     GameProcess: pyrogenesis -rl-interface=127.0.0.1:770n [-autostart-nonvisual]
-    RlClient: /reset /step /evaluate /stop              (src/game/rl.ts)
+    RlClient: /reset /step /evaluate /outro /stop       (src/game/rl.ts)
     the clock: POST /step every 200 ms (speed turns per tick), with every queued command
     one Commander per model player (src/commander.ts)
       observe = AgentiumView(player)        (binaries/data/mods/public/simulation/helpers/AgentiumView.js)
@@ -30,7 +30,7 @@ manager, so the replay is complete and plays back with `pyrogenesis -replay=<com
 
 ```sh
 cd arena
-node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0          # battle mode on random/mainland, as fast as possible
+node src/cli.ts --p1 petra:3 --p2 petra:3 --minutes 15 --speed 0          # battle mode on a random map, as fast as possible
 node src/cli.ts --mode standard --map skirmishes/acropolis_bay_2p --p1 petra:3 --p2 petra:3   # a normal game
 node src/cli.ts --p1 anthropic:claude-haiku-5-5 --civ1 athen --p2 petra:3 --minutes 10 --cap 0.5
 node src/cli.ts --p1 anthropic:claude-sonnet-5-5 --p2 openai:gpt-5 --pacing turnbased --visual
@@ -50,8 +50,23 @@ wall time (1 = real time, 0 = fastest); `--visual` opens a game window as an obs
 - **standard**: a normal game from the village phase with 300 of each resource, scored by
   resources gathered plus kills.
 
-The default map is the random map Mainland (size Small); the setup page opens a game window as
-an observer by default, the CLI stays headless unless `--visual` is given.
+By default the map and every player's civilisation are random: the card values `map: "random"`
+and `civ: "random"` (also what a missing value means) are picked when the match is set up, and
+the match record holds what was picked. The map comes from the random maps that play as a land
+fight (not the naval, trigger or demo ones), with one of its biomes, at size Small; random
+civilisations differ from each other. `node tools/check_maps.ts` checks that every map in that
+pool generates and joins the two civic centres by land. Choose a map or a civilisation to fix
+it (`--map random/mainland`, `--civ1 athen`). The setup page opens a game window as an observer
+by default, the CLI stays headless unless `--visual` is given.
+
+## How a watched match ends
+
+When a match in a game window runs its course (conquest or the time limit), the game freezes on
+its last moment for 5 seconds, then the picture and the sound fade out over 2.5 seconds, and only
+then the window closes. The Arena asks for this with `/outro?hold=S&fade=S` on the RL interface;
+the session page does the rest (`gui/session/outro/`). The lengths are the card fields
+`endHoldSeconds` and `endFadeSeconds` (`--end-hold`, `--end-fade` on the CLI); 0 and 0 closes the
+window at once. A match stopped by hand closes at once, and Stop during the ending cuts it short.
 
 ## Keys and cost
 

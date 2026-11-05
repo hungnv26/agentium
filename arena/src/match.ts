@@ -249,6 +249,19 @@ export class MatchDirector extends EventEmitter {
     this.stopReason ??= "stopped";
   }
 
+  // The ending of a watched match that ran its course: the game freezes on its last moment,
+  // holds, then fades to black, and only then the window closes. Skipped when the match was
+  // stopped by hand or failed, and cut short by Stop or by closing the window.
+  private async outro(): Promise<void> {
+    const { endHoldSeconds: hold, endFadeSeconds: fade, headless } = this.config;
+    if (headless || hold + fade <= 0 || (this.stopReason !== "conquest" && this.stopReason !== "time limit")) return;
+    if (!(await this.game.client.outro(hold, fade))) return;
+    this.emit("log", `[match ${this.id}] ${this.stopReason}: holding the last moment for ${hold} s, then fading out over ${fade} s`);
+    // A little longer than the fade, so the last frames are fully black.
+    const until = Date.now() + (hold + fade) * 1000 + 500;
+    while (Date.now() < until && this.game.running && !this.stopRequested) await sleep(100);
+  }
+
   private async finish(error?: string): Promise<MatchResult> {
     this.state = "finishing";
     for (const c of this.commanders.values()) c.stop();
@@ -258,6 +271,8 @@ export class MatchDirector extends EventEmitter {
     try {
       if (this.game.running) {
         status = await this.game.client.status().catch(() => status);
+        this.emit("status", this.snapshot());
+        await this.outro();
         const stopped = await this.game.client.stop();
         replay = stopped.replay ?? null;
       }

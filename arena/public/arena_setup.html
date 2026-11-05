@@ -132,29 +132,30 @@ const api = (path, init) => fetch(path, init).then(async (r) => { const t = awai
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const CIVS = ["athen", "brit", "cart", "gaul", "germ", "han", "iber", "kush", "mace", "maur", "pers", "ptol", "rome", "sele", "spart"];
 const COLORS = ["#2a2ad0", "#e02020", "#32b432", "#f0c814", "#8c1eb4", "#fa8c00", "#1ebec8", "#e65abe"];
-const DEFAULTS = { mode: "battle", map: "random/mainland", size: 192, minutes: 15, speed: 1, pacing: "realtime", headless: "false", count: 2, cap: 1, budget: 1200000 };
+const DEFAULTS = { mode: "battle", map: "random", size: 192, minutes: 15, speed: 1, pacing: "realtime", headless: "false", count: 2, cap: 1, budget: 1200000 };
 const NOTES = {
   battle: "<b>Battle:</b> every player starts in the city phase with every technology researched, 50,000 of each resource and no housing limit. No farming or mining, only armies. Scored by what is killed and destroyed.",
   standard: "<b>Standard:</b> a normal game from the village phase with 300 of each resource. Scored by resources gathered plus what is killed and destroyed.",
 };
 let providers = {}; const modelLists = {};
 const DEFAULT_PLAYERS = [
-  { controller: "model", provider: "anthropic", model: "claude-sonnet-5-5", civ: "athen" },
-  { controller: "model", provider: "openai", model: "gpt-5", civ: "rome" },
-  { controller: "petra", difficulty: 3, civ: "spart" },
-  { controller: "petra", difficulty: 3, civ: "pers" },
-  { controller: "petra", difficulty: 3, civ: "brit" },
-  { controller: "petra", difficulty: 3, civ: "mace" },
-  { controller: "petra", difficulty: 3, civ: "cart" },
-  { controller: "petra", difficulty: 3, civ: "gaul" },
+  { controller: "model", provider: "anthropic", model: "claude-sonnet-5-5", civ: "random" },
+  { controller: "model", provider: "openai", model: "gpt-5", civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
+  { controller: "petra", difficulty: 3, civ: "random" },
 ];
 const load = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key) || "null") ?? fallback; } catch { return fallback; } };
-let players = load("agentium.players", []);
+// v2: civilisations default to Random; players saved before that keep their models and get Random.
+let players = load("agentium.players.v2", null) ?? load("agentium.players", []).map((p) => ({ ...p, civ: "random" }));
 if (!players.length) players = DEFAULT_PLAYERS.map((p) => ({ ...p }));
-// v2: new defaults (battle mode, random map, game window), so older saved settings are not reused.
-const settings = { ...DEFAULTS, ...load("agentium.settings.v2", {}) };
+// v3: new defaults (battle mode, a random map, game window), so older saved settings are not reused.
+const settings = { ...DEFAULTS, ...load("agentium.settings.v3", {}) };
 const SETTING_IDS = ["mode", "map", "size", "minutes", "speed", "pacing", "headless", "count", "cap", "budget"];
-const saveSettings = () => { for (const id of SETTING_IDS) settings[id] = $("#" + id).value; localStorage.setItem("agentium.settings.v2", JSON.stringify(settings)); };
+const saveSettings = () => { for (const id of SETTING_IDS) settings[id] = $("#" + id).value; localStorage.setItem("agentium.settings.v3", JSON.stringify(settings)); };
 
 async function loadModels(provider) {
   if (modelLists[provider]) return modelLists[provider];
@@ -171,7 +172,7 @@ function renderPlayers() {
     div.innerHTML = `<div class="title"><span class="swatch" style="background:${COLORS[i]}"></span>Player ${i + 1}</div>
       <div class="fields">
         <div><label>Controller</label><select data-k="controller"><option value="model">AI model</option><option value="petra">Petra (built-in AI)</option><option value="none">Empty</option></select></div>
-        <div><label>Civilization</label><select data-k="civ">${CIVS.map((c) => `<option>${c}</option>`).join("")}</select></div>
+        <div><label>Civilization</label><select data-k="civ"><option value="random">Random</option>${CIVS.map((c) => `<option>${c}</option>`).join("")}</select></div>
         <div class="model-only"><label>Provider</label><select data-k="provider">${Object.entries(providers).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div>
         <div class="model-only"><label>Model</label><select data-k="model"></select></div>
         <div class="petra-only"><label>Difficulty</label><select data-k="difficulty"><option value="0">0 sandbox</option><option value="1">1 very easy</option><option value="2">2 easy</option><option value="3">3 medium</option><option value="4">4 hard</option><option value="5">5 very hard</option></select></div>
@@ -179,7 +180,7 @@ function renderPlayers() {
       </div>`;
     host.appendChild(div);
     const sel = (k) => div.querySelector(`[data-k=${k}]`);
-    sel("controller").value = p.controller; sel("civ").value = p.civ ?? CIVS[i % CIVS.length];
+    sel("controller").value = p.controller; sel("civ").value = p.civ ?? "random";
     sel("provider").value = p.provider ?? "anthropic"; sel("difficulty").value = String(p.difficulty ?? 3); sel("team").value = String(p.team ?? -1);
     const refreshModels = async () => {
       const list = await loadModels(sel("provider").value);
@@ -190,16 +191,19 @@ function renderPlayers() {
       p.controller = sel("controller").value; p.civ = sel("civ").value; p.provider = sel("provider").value; p.model = sel("model").value; p.difficulty = Number(sel("difficulty").value); p.team = Number(sel("team").value);
       div.querySelectorAll(".model-only").forEach((e) => e.style.display = p.controller === "model" ? "" : "none");
       div.querySelectorAll(".petra-only").forEach((e) => e.style.display = p.controller === "petra" ? "" : "none");
-      localStorage.setItem("agentium.players", JSON.stringify(players));
+      localStorage.setItem("agentium.players.v2", JSON.stringify(players));
     };
     div.querySelectorAll("select").forEach((s) => s.addEventListener("change", async () => { if (s.dataset.k === "provider") await refreshModels(); update(); }));
     refreshModels().then(update);
   }
 }
 
+// "random" is a random pick among the land random maps; "random/<name>" is one random map.
+const isRandomMap = (map) => map === "random" || map.startsWith("random/");
+
 function syncMatchForm() {
   $("#modeNote").innerHTML = NOTES[$("#mode").value];
-  $("#sizeBox").style.display = $("#map").value.startsWith("random/") ? "" : "none";
+  $("#sizeBox").style.display = isRandomMap($("#map").value) ? "" : "none";
 }
 
 function card() {
@@ -207,7 +211,7 @@ function card() {
   const map = $("#map").value;
   return {
     mode: $("#mode").value, map, minutes: Number($("#minutes").value), speed: Number($("#speed").value), pacing: $("#pacing").value, headless: $("#headless").value === "true",
-    ...(map.startsWith("random/") ? { size: Number($("#size").value) } : {}),
+    ...(isRandomMap(map) ? { size: Number($("#size").value) } : {}),
     players: players.slice(0, n).map((p) => p.controller === "model"
       ? { controller: "model", civ: p.civ, team: p.team, model: `${p.provider}:${p.model}`, cap: Number($("#cap").value) || null, budget: Number($("#budget").value) }
       : { controller: p.controller, civ: p.civ, team: p.team, difficulty: p.difficulty }),
@@ -259,7 +263,7 @@ $("#stop").onclick = () => api("/arena/stop", { method: "POST" });
 (async () => {
   const maps = await api("/arena/maps");
   const label = (m) => m.replace(/_/g, " ");
-  $("#map").innerHTML = `<optgroup label="Random maps">${maps.random.map((m) => `<option value="random/${m}">${label(m)}</option>`).join("")}</optgroup><optgroup label="Skirmish maps">${maps.skirmishes.map((m) => `<option value="skirmishes/${m}">${label(m)}</option>`).join("")}</optgroup>`;
+  $("#map").innerHTML = `<option value="random">Random (any land map)</option><optgroup label="Random maps">${maps.random.map((m) => `<option value="random/${m}">${label(m)}</option>`).join("")}</optgroup><optgroup label="Skirmish maps">${maps.skirmishes.map((m) => `<option value="skirmishes/${m}">${label(m)}</option>`).join("")}</optgroup>`;
   $("#size").innerHTML = (maps.sizes ?? []).map((s) => `<option value="${s.tiles}">${esc(s.name)} (${s.tiles})</option>`).join("");
   for (const id of SETTING_IDS) { const el = $("#" + id); el.value = settings[id]; if (el.value === "" || el.selectedIndex === -1) el.value = DEFAULTS[id]; }
   for (const id of SETTING_IDS) $("#" + id).addEventListener("change", () => { saveSettings(); syncMatchForm(); if (id === "count") renderPlayers(); });

@@ -18,19 +18,72 @@ export function randomMapSettings(map: string): Record<string, any> {
   }
 }
 
-// The biome a random map plays in: the card's, else the first the map supports (a prefix such
-// as "alpine/" means every biome in maps/random/rmbiome/alpine/), else none.
-export function defaultBiome(settings: Record<string, any>, wanted?: string): string | undefined {
-  if (wanted) return wanted;
+// Every biome id ("generic/alpine", "fields_of_meroe/dry", ...) in maps/random/rmbiome/.
+function allBiomes(): string[] {
+  const root = join(MAPS, "random", "rmbiome");
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .flatMap((d) => readdirSync(join(root, d.name)).filter((f) => f.endsWith(".json")).map((f) => `${d.name}/${f.slice(0, -5)}`))
+    .sort();
+}
+
+// The biomes a random map supports: a list of ids, or (as in the game's own setup) a prefix
+// such as "alpine/" or "generic" for every biome whose id starts with it.
+export function supportedBiomes(settings: Record<string, any>): string[] {
   const supported = settings.SupportedBiomes;
-  if (Array.isArray(supported) && supported.length) return String(supported[0]);
-  if (typeof supported === "string" && supported) {
-    if (!supported.endsWith("/")) return supported;
-    const dir = join(MAPS, "random", "rmbiome", supported);
-    const names = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).sort() : [];
-    return names.length ? supported + names[0].slice(0, -5) : undefined;
+  if (Array.isArray(supported)) return supported.map(String);
+  if (typeof supported === "string" && supported) return allBiomes().filter((b) => b.startsWith(supported));
+  return [];
+}
+
+// The biome a random map plays in: the card's, else the first the map supports, else none.
+export function defaultBiome(settings: Record<string, any>, wanted?: string): string | undefined {
+  return wanted || supportedBiomes(settings)[0];
+}
+
+// The maps a "random" card picks from: the random maps that play as a land fight. Left out are
+// the ones the game marks naval (ships are needed to reach the enemy), trigger (their own
+// events: floods, attack waves) or demo, and "unknown", which may generate islands.
+const NOT_IN_POOL = new Set(["unknown"]);
+export function randomMapPool(): string[] {
+  const dir = join(MAPS, "random");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => f.slice(0, -5))
+    .filter((name) => {
+      if (NOT_IN_POOL.has(name)) return false;
+      const settings = randomMapSettings(`random/${name}`);
+      if (!settings.Script) return false; // biome tables and the like
+      const keywords: string[] = Array.isArray(settings.Keywords) ? settings.Keywords : [];
+      return !keywords.some((k) => ["naval", "trigger", "demo"].includes(k)) && !settings.TriggerScripts;
+    })
+    .sort();
+}
+
+const pick = <T>(list: T[], rand: () => number): T => list[Math.min(list.length - 1, Math.floor(rand() * list.length))];
+
+// A map for a "random" card, as "random/<name>", with one of its biomes (if it has any).
+export function pickRandomMap(rand: () => number = Math.random): { map: string; biome?: string } {
+  const pool = randomMapPool();
+  const map = `random/${pool.length ? pick(pool, rand) : "mainland"}`;
+  const biomes = supportedBiomes(randomMapSettings(map));
+  return { map, ...(biomes.length ? { biome: pick(biomes, rand) } : {}) };
+}
+
+// Civilisations for the players who asked for a random one: different from each other and from
+// the ones already chosen while there are enough to go round.
+export function pickRandomCivs(count: number, taken: string[], rand: () => number = Math.random): string[] {
+  const used = new Set(taken);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const free = CIVS.filter((c) => !used.has(c));
+    const civ = pick(free.length ? free : CIVS, rand);
+    used.add(civ);
+    out.push(civ);
   }
-  return undefined;
+  return out;
 }
 
 export const PLAYER_COLORS = [
