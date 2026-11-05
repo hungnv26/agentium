@@ -304,7 +304,9 @@ function AgentiumFindBuildSite(player, templateName, anchor)
 		if (result.success)
 			found = { "x": x, "z": z, "angle": angle };
 		else if (result.message)
-			lastMessage = result.message;
+			// The engine's message has %(name)s style placeholders with their values alongside.
+			lastMessage = result.message.replace(/%\((\w+)\)s/g, (match, key) =>
+				result.parameters && result.parameters[key] !== undefined ? result.parameters[key] : match);
 		return result.success;
 	};
 	try
